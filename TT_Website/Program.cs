@@ -13,6 +13,11 @@ namespace TT_Website
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
             builder.Services.AddScoped<GalleryService>();
+            builder.Services.AddScoped<DownloadService>();
+            builder.Services.AddScoped<SponsorService>();
+            builder.Services.AddScoped<MemberApplicationService>();
+            builder.Services.AddScoped<EmailService>();
+            builder.Services.AddSingleton<AuthService>();
 
             // Add services to the container.
             builder.Services.AddRazorComponents()

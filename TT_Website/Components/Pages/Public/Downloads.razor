@@ -1,0 +1,46 @@
+﻿@page "/downloads"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject DownloadService DownloadService
+
+<h1>Downloads</h1>
+
+@if (documents.Count == 0)
+{
+    <p>Keine Dokumente vorhanden.</p>
+}
+else
+{
+    <div class="download-list">
+        @foreach (var document in documents)
+        {
+            <div class="download-card">
+
+                <h4>@document.Title</h4>
+
+                <p>
+                    Hochgeladen:
+                    @document.UploadedAt.ToString("dd.MM.yyyy")
+                </p>
+
+                <a href="@document.FilePath"
+                   target="_blank">
+                    Dokument öffnen
+                </a>
+
+            </div>
+        }
+    </div>
+}
+
+@code {
+
+    private List<DownloadDocument> documents = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        documents = await DownloadService.GetAllAsync();
+    }
+}

@@ -1,0 +1,60 @@
+﻿@page "/admin"
+@rendermode InteractiveServer
+
+@using TT_Website.Services
+
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<h1>Admin Dashboard</h1>
+
+<p>Willkommen im Administrationsbereich.</p>
+
+<div>
+    <h3>Galerie</h3>
+    <a href="/admin/gallery">Galerie verwalten</a><br />
+    <a href="/admin/gallery-upload">Bild hochladen</a>
+</div>
+
+<hr />
+
+<div>
+    <h3>Downloads</h3>
+    <a href="/admin/download-upload">Dokument hochladen</a>
+</div>
+
+<hr />
+
+<div>
+    <h3>Sponsoren</h3>
+    <a href="/admin/sponsors">Sponsoren verwalten</a>
+</div>
+
+<hr />
+
+<div>
+    <h3>Mitgliedsanträge</h3>
+    <a href="/admin/member-applications">Mitgliedsanträge anzeigen</a>
+</div>
+
+<hr />
+
+<button type="button" @onclick="Logout">
+    Logout
+</button>
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!AuthService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/admin/login");
+        }
+    }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        NavigationManager.NavigateTo("/admin/login");
+    }
+}

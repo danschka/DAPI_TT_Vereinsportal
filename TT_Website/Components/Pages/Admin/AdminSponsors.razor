@@ -1,0 +1,203 @@
+﻿@page "/admin/sponsors"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Forms
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject SponsorService SponsorService
+@inject IWebHostEnvironment Environment
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<h1>Sponsoren verwalten</h1>
+
+<div>
+    <InputText @bind-Value="name" placeholder="Sponsorname" />
+</div>
+
+<br />
+
+<div>
+    <InputText @bind-Value="websiteUrl" placeholder="Website URL" />
+</div>
+
+<br />
+
+<InputFile OnChange="HandleFileSelected" />
+
+<br />
+<br />
+
+<label>
+    <InputCheckbox @bind-Value="isActive" />
+    Aktiv anzeigen
+</label>
+
+<br />
+<br />
+
+<button type="button" @onclick="AddSponsor">
+    Sponsor hinzufügen
+</button>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+<hr />
+
+@if (sponsors.Count == 0)
+{
+    <p>Keine Sponsoren vorhanden.</p>
+}
+else
+{
+    @foreach (var sponsor in sponsors)
+    {
+        <div>
+            @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+            {
+                <img src="@sponsor.LogoPath" alt="@sponsor.Name" style="max-width:150px;" />
+            }
+
+            <h4>@sponsor.Name</h4>
+            <p>@sponsor.WebsiteUrl</p>
+            <p>Aktiv: @sponsor.IsActive</p>
+
+            <button type="button" @onclick="() => DeleteSponsor(sponsor)">
+                Löschen
+            </button>
+
+            <hr />
+        </div>
+    }
+}
+
+@code {
+    private List<Sponsor> sponsors = new();
+
+    private string name = "";
+    private string? websiteUrl = "";
+    private bool isActive = true;
+    private IBrowserFile? selectedFile;
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
+            return;
+        }
+
+        await LoadSponsors();
+    }
+
+    private async Task LoadSponsors()
+    {
+        sponsors = await SponsorService.GetAllAsync();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task AddSponsor()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                message = "Bitte Sponsorname eingeben.";
+                return;
+            }
+
+            string? logoPath = null;
+
+            if (selectedFile != null)
+            {
+                var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
+
+                var folderPath = Path.Combine(
+                    Environment.WebRootPath,
+                    "uploads",
+                    "sponsors");
+
+                Directory.CreateDirectory(folderPath);
+
+                var uploadPath = Path.Combine(folderPath, fileName);
+
+                await using FileStream fs = new(uploadPath, FileMode.Create);
+
+                await selectedFile.OpenReadStream(10 * 1024 * 1024)
+                    .CopyToAsync(fs);
+
+                logoPath = $"/uploads/sponsors/{fileName}";
+            }
+
+            var sponsor = new Sponsor
+            {
+                Name = name,
+                WebsiteUrl = NormalizeUrl(websiteUrl),
+                LogoPath = logoPath,
+                IsActive = isActive
+            };
+
+            await SponsorService.AddAsync(sponsor);
+
+            message = "Sponsor wurde gespeichert.";
+
+            name = "";
+            websiteUrl = "";
+            selectedFile = null;
+            isActive = true;
+
+            await LoadSponsors();
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
+    }
+
+    private async Task DeleteSponsor(Sponsor sponsor)
+    {
+        if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+        {
+            var relativePath = sponsor.LogoPath.TrimStart('/');
+
+            var filePath = Path.Combine(
+                Environment.WebRootPath,
+                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        await SponsorService.DeleteAsync(sponsor.Id);
+
+        message = "Sponsor wurde gelöscht.";
+        await LoadSponsors();
+    }
+
+    private string? NormalizeUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return null;
+
+        url = url.Trim();
+
+        if (!url.StartsWith("http://") &&
+            !url.StartsWith("https://"))
+        {
+            url = "https://" + url;
+        }
+
+        return url;
+    }
+}

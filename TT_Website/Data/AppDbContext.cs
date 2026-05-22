@@ -13,5 +13,5 @@ public class AppDbContext : DbContext
     public DbSet<Sponsor> Sponsors => Set<Sponsor>();
     public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
     public DbSet<DownloadDocument> DownloadDocuments => Set<DownloadDocument>();
-    public DbSet<MemberApplication> MemberApplications => Set<MemberApplication>();
+    public DbSet<MembershipApplication> MemberApplications => Set<MembershipApplication>();
 }

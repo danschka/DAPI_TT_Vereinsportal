@@ -1,0 +1,83 @@
+﻿@page "/admin/gallery"
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject GalleryService GalleryService
+@inject IWebHostEnvironment Environment
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<h1>Galerie verwalten</h1>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+<a href="/admin/gallery-upload">Neues Bild hochladen</a>
+
+<hr />
+
+@if (images.Count == 0)
+{
+    <p>Keine Bilder vorhanden.</p>
+}
+else
+{
+    <div class="admin-gallery-grid">
+        @foreach (var image in images)
+        {
+            <div class="admin-gallery-card">
+                <img src="@image.ImagePath" alt="@image.Title" />
+                <h4>@image.Title</h4>
+                <p>@image.UploadedAt.ToString("dd.MM.yyyy HH:mm")</p>
+
+                <button type="button" @onclick="() => DeleteImage(image)">
+                    Löschen
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<GalleryImage> images = new();
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
+            return;
+        }
+
+        await LoadImages();
+    }
+
+    private async Task LoadImages()
+    {
+        images = await GalleryService.GetAllAsync();
+    }
+
+    private async Task DeleteImage(GalleryImage image)
+    {
+        var relativePath = image.ImagePath.TrimStart('/');
+
+        var filePath = Path.Combine(
+            Environment.WebRootPath,
+            relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        await GalleryService.DeleteAsync(image.Id);
+
+        message = "Bild wurde gelöscht.";
+        await LoadImages();
+    }
+}

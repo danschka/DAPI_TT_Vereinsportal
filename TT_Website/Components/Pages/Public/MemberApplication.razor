@@ -1,0 +1,107 @@
+﻿@page "/mitglied-werden"
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject MemberApplicationService MemberApplicationService
+@inject EmailService EmailService
+
+<h1>Mitglied werden</h1>
+
+<div>
+    <label>Vorname</label><br />
+    <InputText @bind-Value="application.FirstName" />
+</div>
+
+<br />
+
+<div>
+    <label>Nachname</label><br />
+    <InputText @bind-Value="application.LastName" />
+</div>
+
+<br />
+
+<div>
+    <label>E-Mail</label><br />
+    <InputText @bind-Value="application.Email" />
+</div>
+
+<br />
+
+<div>
+    <label>Telefon</label><br />
+    <InputText @bind-Value="application.Phone" />
+</div>
+
+<br />
+
+<div>
+    <label>Geburtsdatum</label><br />
+    <InputDate @bind-Value="application.BirthDate" />
+</div>
+
+<br />
+
+<div>
+    <label>Adresse</label><br />
+    <InputText @bind-Value="application.Address" />
+</div>
+
+<br />
+
+<button type="button" @onclick="SubmitApplication">
+    Antrag absenden
+</button>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+@code {
+    private MembershipApplication application = new()
+    {
+        BirthDate = DateTime.Today
+    };
+
+    private string message = "";
+
+    private async Task SubmitApplication()
+    {
+        if (string.IsNullOrWhiteSpace(application.FirstName) ||
+            string.IsNullOrWhiteSpace(application.LastName) ||
+            string.IsNullOrWhiteSpace(application.Email))
+        {
+            message = "Bitte mindestens Vorname, Nachname und E-Mail ausfüllen.";
+            return;
+        }
+
+        application.SubmittedAt = DateTime.Now;
+
+        await MemberApplicationService.AddAsync(application);
+
+        try
+        {
+            await EmailService.SendMemberApplicationEmailAsync(
+                application.FirstName,
+                application.LastName,
+                application.Email,
+                application.Phone,
+                application.BirthDate,
+                application.Address);
+
+            message = "Dein Antrag wurde erfolgreich gespeichert und per E-Mail versendet.";
+        }
+        catch
+        {
+            message = "Dein Antrag wurde gespeichert. Der E-Mail-Versand ist aktuell noch nicht eingerichtet.";
+        }
+
+        application = new MembershipApplication
+        {
+            BirthDate = DateTime.Today
+        };
+    }
+}

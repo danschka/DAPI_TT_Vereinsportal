@@ -1,0 +1,42 @@
+﻿@page "/admin/login"
+@rendermode InteractiveServer
+
+@using TT_Website.Services
+
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<h1>Admin Login</h1>
+
+<div>
+    <label>Passwort</label><br />
+    <InputText type="password" @bind-Value="password" />
+</div>
+
+<br />
+
+<button type="button" @onclick="Login">
+    Einloggen
+</button>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+@code {
+    private string password = "";
+    private string message = "";
+
+    private void Login()
+    {
+        if (AuthService.Login(password))
+        {
+            NavigationManager.NavigateTo("/admin");
+        }
+        else
+        {
+            message = "Falsches Passwort.";
+        }
+    }
+}

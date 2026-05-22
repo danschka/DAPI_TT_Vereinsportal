@@ -1,16 +1,16 @@
-﻿@page "/admin/gallery-upload"
+﻿@page "/admin/download-upload"
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Forms
 @using TT_Website.Models
 @using TT_Website.Services
 
-@inject GalleryService GalleryService
+@inject DownloadService DownloadService
 @inject IWebHostEnvironment Environment
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
-<h1>Bild hochladen</h1>
+<h1>Dokument hochladen</h1>
 
 <div>
     <InputText @bind-Value="title" placeholder="Titel" />
@@ -18,22 +18,21 @@
 
 <br />
 
-<InputFile OnChange="HandleFileUpload" />
+<InputFile OnChange="HandleFileSelected" />
 
 <br />
 <br />
 
-<button type="button" @onclick="UploadImage">
+<button type="button" @onclick="UploadDocument">
     Hochladen
 </button>
 
-@if (!string.IsNullOrEmpty(message))
+@if (!string.IsNullOrWhiteSpace(message))
 {
     <p>@message</p>
 }
 
 @code {
-
     private IBrowserFile? selectedFile;
     private string title = "";
     private string message = "";
@@ -46,12 +45,12 @@
         }
     }
 
-    private void HandleFileUpload(InputFileChangeEventArgs e)
+    private void HandleFileSelected(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
     }
 
-    private async Task UploadImage()
+    private async Task UploadDocument()
     {
         try
         {
@@ -59,7 +58,7 @@
 
             if (selectedFile == null)
             {
-                message = "Bitte Bild auswählen.";
+                message = "Bitte Datei auswählen.";
                 return;
             }
 
@@ -74,7 +73,7 @@
             var folderPath = Path.Combine(
                 Environment.WebRootPath,
                 "uploads",
-                "gallery");
+                "documents");
 
             Directory.CreateDirectory(folderPath);
 
@@ -83,18 +82,18 @@
             await using FileStream fs = new(uploadPath, FileMode.Create);
 
             await selectedFile.OpenReadStream(
-                maxAllowedSize: 10 * 1024 * 1024)
+                maxAllowedSize: 20 * 1024 * 1024)
                 .CopyToAsync(fs);
 
-            var image = new GalleryImage
+            var document = new DownloadDocument
             {
                 Title = title,
-                ImagePath = $"/uploads/gallery/{fileName}"
+                FilePath = $"/uploads/documents/{fileName}"
             };
 
-            await GalleryService.AddAsync(image);
+            await DownloadService.AddAsync(document);
 
-            message = "Bild erfolgreich hochgeladen.";
+            message = "Dokument erfolgreich hochgeladen.";
 
             title = "";
             selectedFile = null;

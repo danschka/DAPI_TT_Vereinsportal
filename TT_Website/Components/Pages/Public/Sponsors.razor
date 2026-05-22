@@ -1,0 +1,45 @@
+﻿@page "/sponsors"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject SponsorService SponsorService
+
+<h1>Sponsoren</h1>
+
+@if (sponsors.Count == 0)
+{
+    <p>Keine Sponsoren vorhanden.</p>
+}
+else
+{
+    <div class="sponsor-grid">
+        @foreach (var sponsor in sponsors)
+        {
+            <div class="sponsor-card">
+                @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                {
+                    <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                }
+
+                <h4>@sponsor.Name</h4>
+
+                @if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
+                {
+                    <a href="@sponsor.WebsiteUrl" target="_blank">
+                        Zur Website
+                    </a>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Sponsor> sponsors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        sponsors = await SponsorService.GetActiveAsync();
+    }
+}
