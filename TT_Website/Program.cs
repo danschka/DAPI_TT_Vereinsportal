@@ -1,4 +1,7 @@
 using TT_Website.Components;
+using Microsoft.EntityFrameworkCore;
+using TT_Website.Data;
+using TT_Website.Services;
 
 namespace TT_Website
 {
@@ -7,6 +10,9 @@ namespace TT_Website
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Services.AddScoped<GalleryService>();
 
             // Add services to the container.
             builder.Services.AddRazorComponents()

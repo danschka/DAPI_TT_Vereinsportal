@@ -1,0 +1,34 @@
+﻿@page "/gallery"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject GalleryService GalleryService
+
+<h1>Bildergalerie</h1>
+
+@if (images.Count == 0)
+{
+    <p>Noch keine Bilder vorhanden.</p>
+}
+else
+{
+    <div class="gallery-grid">
+        @foreach (var image in images)
+        {
+            <div class="gallery-card">
+                <img src="@image.ImagePath" alt="@image.Title" />
+                <p>@image.Title</p>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<GalleryImage> images = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        images = await GalleryService.GetAllAsync();
+    }
+}

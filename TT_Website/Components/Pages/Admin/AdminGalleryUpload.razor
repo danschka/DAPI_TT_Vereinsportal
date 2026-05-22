@@ -1,0 +1,97 @@
+﻿@page "/admin/gallery-upload"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Forms
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject GalleryService GalleryService
+@inject IWebHostEnvironment Environment
+
+<h1>Bild hochladen</h1>
+
+<div>
+    <InputText @bind-Value="title" placeholder="Titel" />
+</div>
+
+<br />
+
+<InputFile OnChange="HandleFileUpload" />
+
+<br />
+<br />
+
+<button @onclick="UploadImage">
+    Hochladen
+</button>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p>@message</p>
+}
+
+@code {
+
+    private IBrowserFile? selectedFile;
+    private string title = "";
+    private string message = "";
+
+    private void HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task UploadImage()
+    {
+        try
+        {
+            message = "Upload gestartet...";
+
+            if (selectedFile == null)
+            {
+                message = "Bitte Bild auswählen.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                message = "Bitte Titel eingeben.";
+                return;
+            }
+
+            var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
+
+            var folderPath = Path.Combine(
+                Environment.WebRootPath,
+                "uploads",
+                "gallery");
+
+            Directory.CreateDirectory(folderPath);
+
+            var uploadPath = Path.Combine(folderPath, fileName);
+
+            await using FileStream fs = new(uploadPath, FileMode.Create);
+
+            await selectedFile.OpenReadStream(
+                maxAllowedSize: 10 * 1024 * 1024)
+                .CopyToAsync(fs);
+
+            var image = new GalleryImage
+            {
+                Title = title,
+                ImagePath = $"/uploads/gallery/{fileName}"
+            };
+
+            await GalleryService.AddAsync(image);
+
+            message = "Bild erfolgreich hochgeladen.";
+
+            title = "";
+            selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
+    }
+}

@@ -58,3 +58,21 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.gallery-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+    .gallery-card img {
+        width: 100%;
+        border-radius: 12px;
+        object-fit: cover;
+    }
