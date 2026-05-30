@@ -1,0 +1,396 @@
+@page "/teams/{Id:int}"
+@rendermode InteractiveServer
+
+@using System.Text.Json
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject TeamService TeamService
+
+@if (isLoading)
+{
+    <div class="alert alert-info">
+        Mannschaftsdaten werden geladen.
+    </div>
+}
+
+@if (team is null)
+{
+    <div class="alert alert-warning">
+        Mannschaft wurde nicht gefunden.
+    </div>
+}
+else
+{
+    <h1>@team.Name</h1>
+    <p class="text-muted">@team.Category</p>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h4>Ligainformationen</h4>
+
+            <p class="mb-1">
+                <strong>Liga:</strong>
+                @(string.IsNullOrWhiteSpace(team.League)
+                    ? "Noch nicht importiert"
+                    : GetLeagueDescription(team.League))
+            </p>
+
+            <p class="mb-1">
+                <strong>Saison:</strong>
+                @(string.IsNullOrWhiteSpace(team.Season)
+                    ? "Noch nicht importiert"
+                    : team.Season)
+            </p>
+
+            @if (team.LastSyncedAt is not null)
+            {
+                <p class="text-muted mb-3">
+                    Zuletzt aktualisiert:
+                    @team.LastSyncedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                </p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))
+            {
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button"
+                            class="btn btn-primary"
+                            disabled="@isLoading"
+                            @onclick="RefreshTeamData">
+                        Aktualisieren
+                    </button>
+
+                    <a class="btn btn-outline-primary"
+                       href="@team.MyTischtennisLeagueUrl"
+                       target="_blank">
+                        Auf myTischtennis öffnen
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert @statusCssClass">
+            @statusMessage
+        </div>
+    }
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h4>Tabelle</h4>
+
+            @if (!tableRows.Any())
+            {
+                <p class="text-muted">
+                    Ligatabelle wurde noch nicht importiert.
+                </p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm align-middle">
+                        <thead>
+                            <tr>
+                                @foreach (var cell in tableRows[0])
+                                {
+                                    <th>@cell</th>
+                                }
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var row in tableRows.Skip(1))
+                            {
+                                <tr>
+                                    @for (var index = 0; index < tableColumnCount; index++)
+                                    {
+                                        <td>@GetCell(row, index)</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h4>Spielplan</h4>
+
+            @if (!scheduleRows.Any())
+            {
+                <p class="text-muted">
+                    Spielplan wurde noch nicht importiert.
+                </p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm align-middle">
+                        <thead>
+                            <tr>
+                                @foreach (var cell in scheduleRows[0])
+                                {
+                                    <th>@cell</th>
+                                }
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var row in scheduleRows.Skip(1))
+                            {
+                                <tr>
+                                    @for (var index = 0; index < scheduleColumnCount; index++)
+                                    {
+                                        <td>@GetCell(row, index)</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h4>Mannschaftsstatistik</h4>
+
+            @if (!statisticsRows.Any())
+            {
+                <p class="text-muted">
+                    Statistikdaten wurden noch nicht importiert.
+                </p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm align-middle">
+                        <thead>
+                            <tr>
+                                @foreach (var cell in statisticsRows[0])
+                                {
+                                    <th>@cell</th>
+                                }
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var row in statisticsRows.Skip(1))
+                            {
+                                <tr>
+                                    @for (var index = 0; index < statisticsColumnCount; index++)
+                                    {
+                                        <td>@GetCell(row, index)</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <a href="/mannschaften" class="btn btn-secondary">
+        Zurück zu den Mannschaften
+    </a>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Team? team;
+    private bool isLoading;
+    private string statusMessage = "";
+    private string statusCssClass = "alert-info";
+    private List<List<string>> tableRows = [];
+    private List<List<string>> scheduleRows = [];
+    private List<List<string>> statisticsRows = [];
+
+    private int tableColumnCount => GetColumnCount(tableRows);
+    private int scheduleColumnCount => GetColumnCount(scheduleRows);
+    private int statisticsColumnCount => GetColumnCount(statisticsRows);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        SetTeam(await TeamService.GetByIdAsync(Id));
+
+        if (team is not null)
+            await RefreshTeamData();
+    }
+
+    private async Task RefreshTeamData()
+    {
+        if (team is null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))
+        {
+            statusCssClass = "alert-warning";
+            statusMessage = "Für diese Mannschaft ist keine myTischtennis-URL hinterlegt.";
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            statusMessage = "";
+
+            var syncResult = await TeamService.SyncTeamAsync(team.Id);
+            SetTeam(await TeamService.GetByIdAsync(team.Id));
+
+            statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
+            statusMessage = syncResult.Message;
+        }
+        catch (Exception)
+        {
+            statusCssClass = "alert-danger";
+            statusMessage = "Die Daten konnten nicht von myTischtennis geladen werden.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetTeam(Team? loadedTeam)
+    {
+        team = loadedTeam;
+
+        var importedTableRows = ParseRows(team?.TableDataJson);
+
+        tableRows = IsScheduleTable(importedTableRows) || IsStatisticsTable(importedTableRows)
+            ? []
+            : importedTableRows;
+        scheduleRows = ParseRows(team?.ScheduleDataJson);
+        statisticsRows = ParseRows(team?.StatisticsDataJson);
+
+        if (!scheduleRows.Any() && IsScheduleTable(importedTableRows))
+            scheduleRows = NormalizeScheduleRows(importedTableRows);
+
+        if (!statisticsRows.Any() && IsStatisticsTable(importedTableRows))
+            statisticsRows = importedTableRows;
+    }
+
+    private List<List<string>> ParseRows(string? data)
+    {
+        if (string.IsNullOrWhiteSpace(data))
+            return [];
+
+        var trimmedData = data.Trim();
+
+        if (trimmedData.StartsWith("["))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<List<List<string>>>(trimmedData) ?? [];
+            }
+            catch (JsonException)
+            {
+                return [];
+            }
+        }
+
+        return trimmedData
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line
+                .Split('|', StringSplitOptions.TrimEntries)
+                .Where(cell => !string.IsNullOrWhiteSpace(cell))
+                .ToList())
+            .Where(row => row.Count > 0)
+            .ToList();
+    }
+
+    private bool IsScheduleTable(List<List<string>> rows)
+    {
+        if (rows.Count == 0)
+            return false;
+
+        var header = string.Join(" ", rows[0]);
+
+        return header.Contains("Datum", StringComparison.OrdinalIgnoreCase) &&
+            (header.Contains("Heimmannschaft", StringComparison.OrdinalIgnoreCase) ||
+             header.Contains("Gastmannschaft", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool IsStatisticsTable(List<List<string>> rows)
+    {
+        if (rows.Count == 0)
+            return false;
+
+        var header = string.Join(" ", rows[0]);
+
+        return header.Contains("Name", StringComparison.OrdinalIgnoreCase) &&
+            (header.Contains("Einsätze", StringComparison.OrdinalIgnoreCase) ||
+             header.Contains("Bilanz", StringComparison.OrdinalIgnoreCase) ||
+             header.Contains("Gesamt", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<List<string>> NormalizeScheduleRows(List<List<string>> rows)
+    {
+        var normalizedRows = new List<List<string>>
+        {
+            new() { "Datum", "Zeit", "Heim", "Gast", "Ergebnis" }
+        };
+
+        foreach (var row in rows.Skip(1))
+        {
+            var resultIndex = row.FindLastIndex(IsResult);
+
+            if (resultIndex < 3)
+                continue;
+
+            normalizedRows.Add(new List<string>
+            {
+                GetCell(row, 0),
+                ExtractTime(GetCell(row, 1)),
+                GetCell(row, resultIndex - 2),
+                GetCell(row, resultIndex - 1),
+                GetCell(row, resultIndex)
+            });
+        }
+
+        return normalizedRows.Count == 1 ? [] : normalizedRows;
+    }
+
+    private bool IsResult(string value)
+    {
+        return System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d+\s*:\s*\d+$");
+    }
+
+    private string ExtractTime(string value)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(value, @"\d{1,2}:\d{2}");
+
+        return match.Success ? match.Value : value;
+    }
+
+    private int GetColumnCount(List<List<string>> rows)
+    {
+        return rows.Count == 0 ? 0 : rows.Max(row => row.Count);
+    }
+
+    private string GetCell(List<string> row, int index)
+    {
+        return index < row.Count ? row[index] : "";
+    }
+
+    private string GetLeagueDescription(string league)
+    {
+        if (league.Contains("myTischtennis", StringComparison.OrdinalIgnoreCase) ||
+            league.Length > 220)
+        {
+            return "Ligadaten bitte neu synchronisieren.";
+        }
+
+        return league;
+    }
+}

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TT_Website.Data;
 
@@ -10,9 +11,11 @@ using TT_Website.Data;
 namespace TT_Website.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530114527_UpdateTeamsModel")]
+    partial class UpdateTeamsModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -160,32 +163,27 @@ namespace TT_Website.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("LastSyncedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("League")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("MyTischtennisLeagueUrl")
+                    b.Property<string>("MyTischtennisTeamId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MyTischtennisUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ScheduleDataJson")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Season")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("StatisticsDataJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TableDataJson")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

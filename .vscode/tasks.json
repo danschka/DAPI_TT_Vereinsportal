@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build TT_Website",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/TT_Website/TT_Website.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

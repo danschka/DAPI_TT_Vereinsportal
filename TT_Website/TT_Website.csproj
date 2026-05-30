@@ -8,6 +8,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
 	  <PackageReference Include="MailKit" Version="4.16.0" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
@@ -20,6 +21,7 @@
 
 	<ItemGroup>
 	  <Folder Include="wwwroot\uploads\documents\" />
+	  <Folder Include="wwwroot\uploads\news\" />
 	  <Folder Include="wwwroot\uploads\sponsors\" />
 	</ItemGroup>
 

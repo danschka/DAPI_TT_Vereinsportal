@@ -18,6 +18,9 @@ namespace TT_Website
             builder.Services.AddScoped<MemberApplicationService>();
             builder.Services.AddScoped<EmailService>();
             builder.Services.AddSingleton<AuthService>();
+            builder.Services.AddScoped<NewsService>();
+            builder.Services.AddHttpClient<MyTischtennisImportService>();
+            builder.Services.AddScoped<TeamService>();
 
             // Add services to the container.
             builder.Services.AddRazorComponents()

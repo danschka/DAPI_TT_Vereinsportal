@@ -1,0 +1,99 @@
+﻿@page "/admin/news/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject NewsService NewsService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<h1>News bearbeiten</h1>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+@if (newsPost == null)
+{
+    <p>News wird geladen...</p>
+}
+else
+{
+    <div>
+        <label>Titel</label><br />
+        <InputText @bind-Value="newsPost.Title" />
+    </div>
+
+    <br />
+
+    <div>
+        <label>Inhalt</label><br />
+        <InputTextArea @bind-Value="newsPost.Content" />
+    </div>
+
+    <br />
+
+    <label>
+        <InputCheckbox @bind-Value="newsPost.IsPublished" />
+        Veröffentlicht
+    </label>
+
+    <br />
+    <br />
+
+    <button type="button" @onclick="SaveNews">
+        Speichern
+    </button>
+
+    <button type="button" @onclick="Cancel">
+        Abbrechen
+    </button>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private NewsPost? newsPost;
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/admin/login");
+            return;
+        }
+
+        newsPost = await NewsService.GetByIdAsync(Id);
+
+        if (newsPost == null)
+        {
+            message = "News wurde nicht gefunden.";
+        }
+    }
+
+    private async Task SaveNews()
+    {
+        if (newsPost == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(newsPost.Title) ||
+            string.IsNullOrWhiteSpace(newsPost.Content))
+        {
+            message = "Bitte Titel und Inhalt eingeben.";
+            return;
+        }
+
+        await NewsService.UpdateAsync(newsPost);
+
+        NavigationManager.NavigateTo("/admin/news");
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/admin/news");
+    }
+}

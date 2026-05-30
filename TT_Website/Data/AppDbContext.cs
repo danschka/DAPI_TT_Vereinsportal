@@ -14,4 +14,6 @@ public class AppDbContext : DbContext
     public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
     public DbSet<DownloadDocument> DownloadDocuments => Set<DownloadDocument>();
     public DbSet<MembershipApplication> MemberApplications => Set<MembershipApplication>();
+    public DbSet<NewsPost> NewsPosts => Set<NewsPost>();
+    public DbSet<Team> Teams => Set<Team>();
 }

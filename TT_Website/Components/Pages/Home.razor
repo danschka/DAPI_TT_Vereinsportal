@@ -1,7 +1,108 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+@using TT_Website.Models
+@using TT_Website.Services
 
-<h1>Hello, world!</h1>
+@inject NewsService NewsService
+@inject GalleryService GalleryService
+@inject SponsorService SponsorService
 
-Welcome to your new app.
+<h1>TT-Vereinsportal</h1>
+
+<p>
+    Willkommen auf der offiziellen Webseite unseres Tischtennisvereins.
+    Hier findest du aktuelle News, Informationen zum Verein, Downloads,
+    Bilder und die Möglichkeit, direkt Mitglied zu werden.
+</p>
+
+<a href="/mitglied-werden">Jetzt Mitglied werden</a>
+
+<hr />
+
+<h2>Aktuelle News</h2>
+
+@if (latestNews.Count == 0)
+{
+    <p>Keine News vorhanden.</p>
+}
+else
+{
+    @foreach (var post in latestNews)
+    {
+        <article>
+            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+            {
+                <img src="@post.ImagePath" alt="@post.Title" style="max-width:300px;" />
+            }
+
+            <h3>@post.Title</h3>
+            <p>@post.CreatedAt.ToString("dd.MM.yyyy")</p>
+            <p>@post.Content</p>
+        </article>
+    }
+
+    <a href="/news">Alle News anzeigen</a>
+}
+
+<hr />
+
+<h2>Bildergalerie</h2>
+
+@if (latestImages.Count == 0)
+{
+    <p>Keine Bilder vorhanden.</p>
+}
+else
+{
+    <div class="gallery-grid">
+        @foreach (var image in latestImages)
+        {
+            <div class="gallery-card">
+                <img src="@image.ImagePath" alt="@image.Title" />
+                <p>@image.Title</p>
+            </div>
+        }
+    </div>
+
+    <a href="/gallery">Zur Galerie</a>
+}
+
+<hr />
+
+<h2>Sponsoren</h2>
+
+@if (sponsors.Count == 0)
+{
+    <p>Keine Sponsoren vorhanden.</p>
+}
+else
+{
+    <div class="sponsor-grid">
+        @foreach (var sponsor in sponsors)
+        {
+            <div class="sponsor-card">
+                @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                {
+                    <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                }
+
+                <h4>@sponsor.Name</h4>
+            </div>
+        }
+    </div>
+
+    <a href="/sponsors">Alle Sponsoren anzeigen</a>
+}
+
+@code {
+    private List<NewsPost> latestNews = new();
+    private List<GalleryImage> latestImages = new();
+    private List<Sponsor> sponsors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        latestNews = await NewsService.GetLatestAsync(3);
+        latestImages = await GalleryService.GetLatestAsync(3);
+        sponsors = await SponsorService.GetActiveAsync();
+    }
+}

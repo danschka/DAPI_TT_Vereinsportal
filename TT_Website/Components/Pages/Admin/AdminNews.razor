@@ -1,0 +1,197 @@
+﻿@page "/admin/news"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Forms
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject NewsService NewsService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IWebHostEnvironment Environment
+
+<h1>News verwalten</h1>
+
+<div>
+    <InputText @bind-Value="title" placeholder="Titel" />
+</div>
+
+<br />
+
+<div>
+    <InputTextArea @bind-Value="content" placeholder="Inhalt" />
+</div>
+
+<br />
+
+<InputFile OnChange="HandleFileSelected" />
+
+<br />
+<br />
+
+<label>
+    <InputCheckbox @bind-Value="isPublished" />
+    Veröffentlicht
+</label>
+
+<br />
+<br />
+
+<button type="button" @onclick="AddNews">
+    News speichern
+</button>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p>@message</p>
+}
+
+<hr />
+
+@if (newsPosts.Count == 0)
+{
+    <p>Keine News vorhanden.</p>
+}
+else
+{
+    @foreach (var post in newsPosts)
+    {
+        <div>
+            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+            {
+                <img src="@post.ImagePath" alt="@post.Title" style="max-width:200px;" />
+            }
+
+            <h3>@post.Title</h3>
+            <p>@post.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+            <p>@post.Content</p>
+            <p>Veröffentlicht: @post.IsPublished</p>
+
+            <a href="@($"/admin/news/edit/{post.Id}")">
+                Bearbeiten
+            </a>
+
+            &nbsp;
+
+            <button type="button" @onclick="() => DeleteNews(post)">
+                Löschen
+            </button>
+
+            <hr />
+        </div>
+    }
+}
+
+@code {
+    private List<NewsPost> newsPosts = new();
+
+    private string title = "";
+    private string content = "";
+    private bool isPublished = true;
+    private string message = "";
+    private IBrowserFile? selectedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn)
+        {
+            NavigationManager.NavigateTo("/admin/login");
+            return;
+        }
+
+        await LoadNews();
+    }
+
+    private async Task LoadNews()
+    {
+        newsPosts = await NewsService.GetAllAsync();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+    private async Task AddNews()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(title) ||
+                string.IsNullOrWhiteSpace(content))
+            {
+                message = "Bitte Titel und Inhalt eingeben.";
+                return;
+            }
+
+            string? imagePath = null;
+
+            if (selectedFile != null)
+            {
+                var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
+
+                var folderPath = Path.Combine(
+                    Environment.WebRootPath,
+                    "uploads",
+                    "news");
+
+                Directory.CreateDirectory(folderPath);
+
+                var uploadPath = Path.Combine(folderPath, fileName);
+
+                await using FileStream fs = new(uploadPath, FileMode.Create);
+
+                await selectedFile.OpenReadStream(10 * 1024 * 1024)
+                    .CopyToAsync(fs);
+
+                imagePath = $"/uploads/news/{fileName}";
+            }
+
+            var newsPost = new NewsPost
+            {
+                Title = title,
+                Content = content,
+                ImagePath = imagePath,
+                IsPublished = isPublished,
+                CreatedAt = DateTime.Now
+            };
+
+            await NewsService.AddAsync(newsPost);
+
+            message = "News wurde gespeichert.";
+
+            title = "";
+            content = "";
+            isPublished = true;
+            selectedFile = null;
+
+            await LoadNews();
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
+    }
+
+    private async Task DeleteNews(NewsPost post)
+    {
+        if (!string.IsNullOrWhiteSpace(post.ImagePath))
+        {
+            var relativePath = post.ImagePath.TrimStart('/');
+
+            var filePath = Path.Combine(
+                Environment.WebRootPath,
+                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        await NewsService.DeleteAsync(post.Id);
+
+        message = "News wurde gelöscht.";
+
+        await LoadNews();
+    }
+}

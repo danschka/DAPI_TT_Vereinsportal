@@ -21,15 +21,22 @@ public class EmailService
         DateTime birthDate,
         string address)
     {
+        var fromEmail = GetRequiredSetting("EmailSettings:FromEmail");
+        var toEmail = GetRequiredSetting("EmailSettings:ToEmail");
+        var smtpServer = GetRequiredSetting("EmailSettings:SmtpServer");
+        var smtpPort = int.Parse(GetRequiredSetting("EmailSettings:SmtpPort"));
+        var username = GetRequiredSetting("EmailSettings:Username");
+        var password = GetRequiredSetting("EmailSettings:Password");
+
         var message = new MimeMessage();
 
         message.From.Add(new MailboxAddress(
             "TT Vereinsportal",
-            _configuration["EmailSettings:FromEmail"]));
+            fromEmail));
 
         message.To.Add(new MailboxAddress(
             "Verein",
-            _configuration["EmailSettings:ToEmail"]));
+            toEmail));
 
         message.Subject = "Neue Mitgliedsanfrage";
 
@@ -50,15 +57,25 @@ Eingereicht am: {DateTime.Now:dd.MM.yyyy HH:mm}"
         using var client = new SmtpClient();
 
         await client.ConnectAsync(
-            _configuration["EmailSettings:SmtpServer"],
-            int.Parse(_configuration["EmailSettings:SmtpPort"]!),
+            smtpServer,
+            smtpPort,
             SecureSocketOptions.StartTls);
 
         await client.AuthenticateAsync(
-            _configuration["EmailSettings:Username"],
-            _configuration["EmailSettings:Password"]);
+            username,
+            password);
 
         await client.SendAsync(message);
         await client.DisconnectAsync(true);
+    }
+
+    private string GetRequiredSetting(string key)
+    {
+        var value = _configuration[key];
+
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException($"Die Einstellung '{key}' fehlt.");
+
+        return value;
     }
 }

@@ -1,6 +1,6 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">TT_Website</a>
+        <a class="navbar-brand" href="/">TT Vereinsportal</a>
     </div>
 </div>
 
@@ -8,11 +8,96 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
+
+        <div class="nav-item px-3 mt-2">
+            <a>Öffentliche Website</a>
+        </div>
+
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                Home
             </NavLink>
         </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/news">
+                News
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/gallery">
+                Galerie
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/downloads">
+                Downloads
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/sponsors">
+                Sponsoren
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/mitglied-werden">
+                Mitglied werden
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/training">
+                Training
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/mannschaften">
+                Mannschaften
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/kontakt">
+                Kontakt
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/impressum">
+                Impressum
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/datenschutz">
+                Datenschutz
+            </NavLink>
+        </div>
+
+        <hr />
+
+        <div class="nav-item px-3 mt-2">
+            <strong>Administration</strong>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/admin/login">
+                Admin Login
+            </NavLink>
+        </div>
+
+        <hr />
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/links">
+                Links
+            </NavLink>
+        </div>
+
     </nav>
 </div>
-

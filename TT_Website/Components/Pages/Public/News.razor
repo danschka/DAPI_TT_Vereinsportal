@@ -1,0 +1,44 @@
+﻿@page "/news"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject NewsService NewsService
+
+<h1>News</h1>
+
+@if (newsPosts.Count == 0)
+{
+    <p>Keine News vorhanden.</p>
+}
+else
+{
+    @foreach (var post in newsPosts)
+    {
+        <article>
+            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+            {
+                <img src="@post.ImagePath" alt="@post.Title" style="max-width:300px;" />
+            }
+
+            <h3>@post.Title</h3>
+
+            <p>
+                @post.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+            </p>
+
+            <p>@post.Content</p>
+
+            <hr />
+        </article>
+    }
+}
+
+@code {
+    private List<NewsPost> newsPosts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        newsPosts = await NewsService.GetPublishedAsync();
+    }
+}

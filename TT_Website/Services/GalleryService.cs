@@ -36,4 +36,12 @@ public class GalleryService
         _context.GalleryImages.Remove(image);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<GalleryImage>> GetLatestAsync(int count)
+    {
+        return await _context.GalleryImages
+            .OrderByDescending(x => x.UploadedAt)
+            .Take(count)
+            .ToListAsync();
+    }
 }

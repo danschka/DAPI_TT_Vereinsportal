@@ -15,7 +15,7 @@ public class AuthService
     {
         var adminPassword = _configuration["AdminSettings:Password"];
 
-        if (password == adminPassword)
+        if (!string.IsNullOrWhiteSpace(adminPassword) && password == adminPassword)
         {
             IsLoggedIn = true;
             return true;

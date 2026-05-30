@@ -1,0 +1,287 @@
+﻿@page "/admin/teams"
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject TeamService TeamService
+
+<h3>Mannschaften verwalten</h3>
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert @statusCssClass">@statusMessage</div>
+}
+
+<div class="card p-4 mb-4">
+    <h5>@(editMode ? "Mannschaft bearbeiten" : "Neue Mannschaft")</h5>
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <input class="form-control" @bind="currentTeam.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Kategorie</label>
+        <select class="form-select" @bind="currentTeam.Category">
+            <option value="Damen">Damen</option>
+            <option value="Herren">Herren</option>
+            <option value="Jugend">Jugend</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">myTischtennis URL</label>
+        <input class="form-control" @bind="currentTeam.MyTischtennisLeagueUrl" />
+    </div>
+
+    <div class="form-check mb-3">
+        <input class="form-check-input"
+               type="checkbox"
+               @bind="currentTeam.IsActive" />
+
+        <label class="form-check-label">
+            Aktiv anzeigen
+        </label>
+    </div>
+
+    @if (editMode)
+    {
+        <button type="button" class="btn btn-success me-2" @onclick="UpdateTeam">
+            Änderungen speichern
+        </button>
+
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">
+            Abbrechen
+        </button>
+    }
+    else
+    {
+        <button type="button" class="btn btn-primary" @onclick="CreateTeam">
+            Mannschaft anlegen
+        </button>
+    }
+</div>
+
+@if (!teams.Any())
+{
+    <div class="alert alert-warning">
+        Noch keine Mannschaften vorhanden.
+    </div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Kategorie</th>
+                <th>Status</th>
+                <th>URL</th>
+                <th>Import</th>
+                <th></th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var team in teams)
+            {
+                <tr>
+                    <td>@team.Id</td>
+                    <td>@team.Name</td>
+                    <td>@team.Category</td>
+
+                    <td>
+                        @if (team.IsActive)
+                        {
+                            <span class="badge bg-success">Aktiv</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inaktiv</span>
+                        }
+                    </td>
+
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))
+                        {
+                            <a href="@team.MyTischtennisLeagueUrl" target="_blank">
+                                Öffnen
+                            </a>
+                        }
+                    </td>
+
+                    <td>
+                        @if (team.LastSyncedAt is null)
+                        {
+                            <span class="text-muted">Noch nie</span>
+                        }
+                        else
+                        {
+                            @team.LastSyncedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                        }
+                    </td>
+
+                    <td class="text-end">
+                        <button type="button"
+                                class="btn btn-outline-primary btn-sm me-2"
+                                disabled="@(syncingTeamId == team.Id || string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))"
+                                @onclick="() => SyncTeam(team.Id)">
+                            @(syncingTeamId == team.Id ? "Lädt..." : "Synchronisieren")
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-warning btn-sm me-2"
+                                @onclick="() => StartEdit(team)">
+                            Bearbeiten
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-danger btn-sm"
+                                @onclick="() => DeleteTeam(team.Id)">
+                            Löschen
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Team> teams = [];
+
+    private Team currentTeam = new()
+    {
+        Category = "Herren",
+        IsActive = true
+    };
+
+    private bool editMode = false;
+    private string statusMessage = "";
+    private string statusCssClass = "alert-info";
+    private int? syncingTeamId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTeams();
+    }
+
+    private async Task LoadTeams()
+    {
+        teams = await TeamService.GetAllAsync();
+    }
+
+    private async Task CreateTeam()
+    {
+        if (string.IsNullOrWhiteSpace(currentTeam.Name))
+        {
+            statusCssClass = "alert-warning";
+            statusMessage = "Name fehlt.";
+            return;
+        }
+
+        currentTeam.IsActive = true;
+
+        var syncResult = await TeamService.AddAsync(currentTeam);
+        await LoadTeams();
+
+        statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
+        statusMessage = syncResult.Success
+            ? $"Mannschaft '{currentTeam.Name}' wurde angelegt und synchronisiert."
+            : $"Mannschaft '{currentTeam.Name}' wurde angelegt. {syncResult.Message}";
+
+        ResetForm();
+    }
+
+    private void StartEdit(Team team)
+    {
+        currentTeam = new Team
+        {
+            Id = team.Id,
+            Name = team.Name,
+            Category = team.Category,
+            MyTischtennisLeagueUrl = team.MyTischtennisLeagueUrl,
+            IsActive = team.IsActive,
+            League = team.League,
+            Season = team.Season,
+            TableDataJson = team.TableDataJson,
+            ScheduleDataJson = team.ScheduleDataJson,
+            StatisticsDataJson = team.StatisticsDataJson,
+            LastSyncedAt = team.LastSyncedAt
+        };
+
+        editMode = true;
+        statusCssClass = "alert-info";
+        statusMessage = $"Bearbeite '{team.Name}'.";
+    }
+
+    private async Task UpdateTeam()
+    {
+        if (string.IsNullOrWhiteSpace(currentTeam.Name))
+        {
+            statusCssClass = "alert-warning";
+            statusMessage = "Name fehlt.";
+            return;
+        }
+
+        var syncResult = await TeamService.UpdateAsync(currentTeam);
+        await LoadTeams();
+
+        statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
+        statusMessage = syncResult.Success
+            ? $"Mannschaft '{currentTeam.Name}' wurde aktualisiert und synchronisiert."
+            : $"Mannschaft '{currentTeam.Name}' wurde aktualisiert. {syncResult.Message}";
+
+        ResetForm();
+    }
+
+    private async Task SyncTeam(int id)
+    {
+        try
+        {
+            syncingTeamId = id;
+            statusMessage = "";
+
+            var syncResult = await TeamService.SyncTeamAsync(id);
+            await LoadTeams();
+
+            statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
+            statusMessage = syncResult.Message;
+        }
+        finally
+        {
+            syncingTeamId = null;
+        }
+    }
+
+    private async Task DeleteTeam(int id)
+    {
+        await TeamService.DeleteAsync(id);
+        await LoadTeams();
+
+        statusCssClass = "alert-info";
+        statusMessage = "Mannschaft wurde gelöscht.";
+
+        ResetForm();
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+        statusCssClass = "alert-info";
+        statusMessage = "Bearbeitung abgebrochen.";
+    }
+
+    private void ResetForm()
+    {
+        currentTeam = new Team
+        {
+            Category = "Herren",
+            IsActive = true
+        };
+
+        editMode = false;
+    }
+}

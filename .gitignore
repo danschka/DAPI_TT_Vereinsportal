@@ -10,6 +10,9 @@
 *.userosscache
 *.sln.docstates
 *.env
+appsettings.Development.json
+appsettings.Local.json
+/DAPI_TT_Vereinsportal/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -281,6 +284,16 @@ ServiceFabricBackup/
 *.mdf
 *.ldf
 *.ndf
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Runtime uploads
+**/wwwroot/uploads/**
+!**/wwwroot/uploads/.gitkeep
 
 # Business Intelligence projects
 *.rdl.data

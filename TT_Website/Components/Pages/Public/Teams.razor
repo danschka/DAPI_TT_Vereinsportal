@@ -1,0 +1,103 @@
+﻿@page "/mannschaften"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject TeamService TeamService
+
+<h1 class="mb-4">Mannschaften</h1>
+
+@if (!teams.Any())
+{
+    <div class="alert alert-info">
+        Aktuell sind keine Mannschaften eingetragen.
+    </div>
+}
+else
+{
+    @foreach (var group in groupedTeams)
+    {
+        <h2 class="mt-4 mb-3">@group.Key</h2>
+
+        <div class="row">
+            @foreach (var team in group)
+            {
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+
+                            <h4 class="card-title">@team.Name</h4>
+
+                            @if (!string.IsNullOrWhiteSpace(team.League))
+                            {
+                                <p class="card-text">
+                                    <strong>Liga:</strong> @GetLeagueDescription(team.League)
+                                </p>
+
+                                @if (!string.IsNullOrWhiteSpace(team.Season))
+                                {
+                                    <p class="card-text text-muted">
+                                        Saison: @team.Season
+                                    </p>
+                                }
+                            }
+                            else if (!string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))
+                            {
+                                <p class="text-muted">
+                                    Ligadaten können synchronisiert werden.
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="text-muted">
+                                    Ligadaten noch nicht importiert.
+                                </p>
+                            }
+
+                            <a class="btn btn-primary"
+                               href="/teams/@team.Id">
+                                Details anzeigen
+                            </a>
+
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Team> teams = [];
+
+    private IEnumerable<IGrouping<string, Team>> groupedTeams =>
+        teams.GroupBy(t => t.Category)
+             .OrderBy(g => GetCategoryOrder(g.Key));
+
+    protected override async Task OnInitializedAsync()
+    {
+        teams = await TeamService.GetActiveAsync();
+    }
+
+    private int GetCategoryOrder(string category)
+    {
+        return category switch
+        {
+            "Damen" => 1,
+            "Herren" => 2,
+            "Jugend" => 3,
+            _ => 99
+        };
+    }
+
+    private string GetLeagueDescription(string league)
+    {
+        if (league.Contains("myTischtennis", StringComparison.OrdinalIgnoreCase) ||
+            league.Length > 140)
+        {
+            return "Ligadaten bitte neu synchronisieren.";
+        }
+
+        return league;
+    }
+}
