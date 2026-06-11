@@ -1,0 +1,108 @@
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+@implements IDisposable
+
+@inject GalleryService GalleryService
+
+@if (images.Count > 0)
+{
+    <div class="@CssClass" style="@BackgroundStyle">
+        @if (ShowOverlay)
+        {
+            <div class="page-slideshow__overlay"></div>
+        }
+
+        @if (ShowCaptions && CurrentImage != null)
+        {
+            <div class="page-slideshow__caption">
+                <span>@CurrentImage.Title</span>
+            </div>
+        }
+
+        @if (images.Count > 1)
+        {
+            <div class="page-slideshow__dots" aria-hidden="true">
+                @for (var i = 0; i < images.Count; i++)
+                {
+                    <span class="@(i == currentIndex ? "is-active" : "")"></span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string PageKey { get; set; } = "";
+
+    [Parameter]
+    public string CssClass { get; set; } = "page-slideshow";
+
+    [Parameter]
+    public bool ShowOverlay { get; set; } = true;
+
+    [Parameter]
+    public bool ShowCaptions { get; set; }
+
+    private List<GalleryImage> images = new();
+    private int currentIndex;
+    private int intervalSeconds = 3;
+    private bool slideshowEnabled = true;
+    private CancellationTokenSource? cancellationTokenSource;
+
+    private GalleryImage? CurrentImage =>
+        images.Count == 0 ? null : images[currentIndex];
+
+    private string BackgroundStyle =>
+        CurrentImage == null
+            ? ""
+            : $"background-image: url('{CurrentImage.ImagePath}');";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var assignment = await GalleryService.GetPageAssignmentAsync(PageKey);
+
+        if (assignment?.GalleryGroup?.Images != null)
+        {
+            images = assignment.GalleryGroup.Images
+                .OrderBy(x => x.SortOrder)
+                .Where(x => x.GalleryImage != null)
+                .Select(x => x.GalleryImage!)
+                .ToList();
+
+            intervalSeconds = Math.Clamp(assignment.IntervalSeconds, 2, 30);
+            slideshowEnabled = assignment.SlideshowEnabled;
+        }
+
+        if (images.Count > 1 && slideshowEnabled)
+        {
+            cancellationTokenSource = new CancellationTokenSource();
+            _ = RunSlideshowAsync(cancellationTokenSource.Token);
+        }
+    }
+
+    private async Task RunSlideshowAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(intervalSeconds));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                currentIndex = (currentIndex + 1) % images.Count;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellationTokenSource?.Cancel();
+        cancellationTokenSource?.Dispose();
+    }
+}

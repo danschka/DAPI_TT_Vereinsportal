@@ -1,103 +1,97 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">TT Vereinsportal</a>
-    </div>
-</div>
+@using TT_Website.Models
+@using TT_Website.Services
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+@inject ContentPageService ContentPageService
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
+<header class="site-header">
+    <a class="site-brand" href="/">
+        <span>TT</span>
+        <strong>TSV 1883 Bogen Tischtennis</strong>
+    </a>
 
-        <div class="nav-item px-3 mt-2">
-            <a>Öffentliche Website</a>
-        </div>
+    <input id="site-nav-toggle" type="checkbox" class="site-nav-toggle" />
+    <label for="site-nav-toggle" class="site-nav-button" aria-label="Navigation öffnen">
+        <span></span>
+        <span></span>
+        <span></span>
+    </label>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
-                Home
-            </NavLink>
-        </div>
+    <nav class="site-nav" aria-label="Hauptnavigation">
+        @foreach (var navPage in navPages)
+        {
+            var children = navPage.Children
+                .OrderBy(x => x.SortOrder)
+                .ToList();
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/news">
-                News
-            </NavLink>
-        </div>
+            <div class="site-nav-item">
+                <NavLink class="site-nav-link" href="@GetPageUrl(navPage)" Match="@GetMatch(navPage)">
+                    @navPage.Title
+                </NavLink>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/gallery">
-                Galerie
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/downloads">
-                Downloads
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/sponsors">
-                Sponsoren
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/mitglied-werden">
-                Mitglied werden
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/training">
-                Training
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/mannschaften">
-                Mannschaften
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/kontakt">
-                Kontakt
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/impressum">
-                Impressum
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/datenschutz">
-                Datenschutz
-            </NavLink>
-        </div>
-
-        <hr />
-
-        <div class="nav-item px-3 mt-2">
-            <strong>Administration</strong>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/admin/login">
-                Admin Login
-            </NavLink>
-        </div>
-
-        <hr />
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="/links">
-                Links
-            </NavLink>
-        </div>
-
+                @if (children.Count > 0)
+                {
+                    <div class="site-nav-dropdown">
+                        @foreach (var child in children)
+                        {
+                            @if (!string.IsNullOrWhiteSpace(child.ExternalUrl))
+                            {
+                                <a class="site-nav-dropdown-link" href="@child.ExternalUrl" target="_blank" rel="noopener noreferrer">
+                                    @child.Title
+                                </a>
+                            }
+                            else
+                            {
+                                <NavLink class="site-nav-dropdown-link" href="@GetPageUrl(child)">
+                                    @child.Title
+                                </NavLink>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        }
     </nav>
-</div>
+
+    <div class="site-actions">
+        <a class="site-join-link" href="/mitglied-werden">Mitglied werden</a>
+
+        <AuthorizeView>
+            <Authorized>
+                <a class="site-admin-link" href="/admin">Admin</a>
+                <form method="post" action="/admin/auth/logout">
+                    <AntiforgeryToken />
+                    <button type="submit" class="site-admin-button">Logout</button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <a class="site-admin-link" href="/admin/login">Admin Login</a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+@code {
+    private List<ContentPage> navPages = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        navPages = await ContentPageService.GetNavigationAsync();
+    }
+
+    private static string GetPageUrl(ContentPage page)
+    {
+        return page.Slug switch
+        {
+            "startseite" => "/",
+            "mannschaften-cms" => "/mannschaften",
+            "mannschaftsuebersicht" => "/mannschaften",
+            "aufnahmeerklaerung" => "/mitglied-werden",
+            _ => $"/seite/{page.Slug}"
+        };
+    }
+
+    private static NavLinkMatch GetMatch(ContentPage page)
+    {
+        return page.Slug == "startseite" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+    }
+}

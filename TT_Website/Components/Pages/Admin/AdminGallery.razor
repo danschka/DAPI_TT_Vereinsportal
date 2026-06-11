@@ -1,13 +1,11 @@
-﻿@page "/admin/gallery"
+@page "/admin/gallery"
 @rendermode InteractiveServer
 
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject GalleryService GalleryService
-@inject IWebHostEnvironment Environment
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+@inject FileUploadService FileUploadService
 
 <h1>Galerie verwalten</h1>
 
@@ -19,6 +17,177 @@
 <a href="/admin/gallery-upload">Neues Bild hochladen</a>
 
 <hr />
+
+<h2>Gruppen</h2>
+
+<div>
+    <InputText @bind-Value="groupName" placeholder="Gruppenname, z. B. Weihnachtsmarkt" />
+</div>
+
+<br />
+
+<div>
+    <InputTextArea @bind-Value="groupDescription" placeholder="Beschreibung optional" />
+</div>
+
+<br />
+
+<button type="button" @onclick="SaveGroup">
+    @(editingGroupId.HasValue ? "Gruppe speichern" : "Gruppe anlegen")
+</button>
+
+@if (editingGroupId.HasValue)
+{
+    <button type="button" @onclick="CancelGroupEdit">
+        Abbrechen
+    </button>
+}
+
+@if (groups.Count == 0)
+{
+    <p>Noch keine Gruppen vorhanden.</p>
+}
+else
+{
+    @foreach (var group in groups)
+    {
+        <section class="admin-gallery-group">
+            <div>
+                <h3>@group.Name</h3>
+                @if (!string.IsNullOrWhiteSpace(group.Description))
+                {
+                    <p>@group.Description</p>
+                }
+                <p>@group.Images.Count Bild(er)</p>
+            </div>
+
+            <div>
+                <button type="button" @onclick="() => StartGroupEdit(group)">
+                    Bearbeiten
+                </button>
+                <button type="button" @onclick="() => DeleteGroup(group.Id)">
+                    Gruppe löschen
+                </button>
+            </div>
+
+            <div>
+                <select @bind="selectedImageIds[group.Id]">
+                    <option value="0">Bild auswählen</option>
+                    @foreach (var image in images)
+                    {
+                        <option value="@image.Id">@image.Title</option>
+                    }
+                </select>
+                <button type="button" @onclick="() => AddImageToGroup(group.Id)">
+                    Bild hinzufügen
+                </button>
+            </div>
+
+            @if (group.Images.Count > 0)
+            {
+                <div class="admin-gallery-grid">
+                    @foreach (var groupImage in group.Images.OrderBy(x => x.SortOrder))
+                    {
+                        if (groupImage.GalleryImage != null)
+                        {
+                            <div class="admin-gallery-card">
+                                <img src="@groupImage.GalleryImage.ImagePath" alt="@groupImage.GalleryImage.Title" />
+                                <h4>@groupImage.GalleryImage.Title</h4>
+                                <button type="button" @onclick="() => RemoveImageFromGroup(groupImage.Id)">
+                                    Aus Gruppe entfernen
+                                </button>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </section>
+    }
+}
+
+<hr />
+
+<h2>Gruppen Seiten zuweisen</h2>
+
+<div class="admin-page-assignment-form">
+    <div>
+        <label>Seite</label><br />
+        <select @bind="assignmentPageKey">
+            <option value="home">Startseite</option>
+            <option value="gallery">Galerie</option>
+            <option value="weihnachtsmarkt">Weihnachtsmarkt</option>
+        </select>
+    </div>
+
+    <div>
+        <label>Anzeigename</label><br />
+        <InputText @bind-Value="assignmentPageTitle" />
+    </div>
+
+    <div>
+        <label>Gruppe</label><br />
+        <select @bind="assignmentGroupId">
+            <option value="0">Gruppe auswählen</option>
+            @foreach (var group in groups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <label>Intervall Sekunden</label><br />
+        <InputNumber @bind-Value="assignmentIntervalSeconds" />
+    </div>
+
+    <label>
+        <InputCheckbox @bind-Value="assignmentSlideshowEnabled" />
+        Slideshow aktiv
+    </label>
+
+    <button type="button" @onclick="SavePageAssignment">
+        Zuweisung speichern
+    </button>
+</div>
+
+@if (assignments.Count == 0)
+{
+    <p>Noch keine Seitenzuweisungen vorhanden.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Seite</th>
+                <th>Gruppe</th>
+                <th>Slideshow</th>
+                <th>Intervall</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var assignment in assignments)
+            {
+                <tr>
+                    <td>@assignment.PageTitle (@assignment.PageKey)</td>
+                    <td>@assignment.GalleryGroup?.Name</td>
+                    <td>@(assignment.SlideshowEnabled ? "Ja" : "Nein")</td>
+                    <td>@assignment.IntervalSeconds Sekunden</td>
+                    <td>
+                        <button type="button" @onclick="() => DeletePageAssignment(assignment.Id)">
+                            Löschen
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<hr />
+
+<h2>Alle Bilder</h2>
 
 @if (images.Count == 0)
 {
@@ -44,40 +213,159 @@ else
 
 @code {
     private List<GalleryImage> images = new();
+    private List<GalleryGroup> groups = new();
+    private List<PageGalleryAssignment> assignments = new();
+    private Dictionary<int, int> selectedImageIds = new();
+
+    private string groupName = "";
+    private string? groupDescription;
+    private int? editingGroupId;
+
+    private string assignmentPageKey = "home";
+    private string assignmentPageTitle = "Startseite";
+    private int assignmentGroupId;
+    private bool assignmentSlideshowEnabled = true;
+    private int assignmentIntervalSeconds = 3;
+
     private string message = "";
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsLoggedIn)
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        images = await GalleryService.GetAllAsync();
+        groups = await GalleryService.GetGroupsAsync();
+        assignments = groups.SelectMany(x => x.PageAssignments).OrderBy(x => x.PageTitle).ToList();
+
+        foreach (var group in groups)
         {
-            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
+            selectedImageIds.TryAdd(group.Id, 0);
+        }
+    }
+
+    private async Task SaveGroup()
+    {
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            message = "Bitte einen Gruppennamen eingeben.";
             return;
         }
 
-        await LoadImages();
+        if (editingGroupId.HasValue)
+        {
+            var group = await GalleryService.GetGroupByIdAsync(editingGroupId.Value);
+
+            if (group != null)
+            {
+                group.Name = groupName.Trim();
+                group.Description = groupDescription?.Trim();
+                await GalleryService.UpdateGroupAsync(group);
+                message = "Gruppe wurde aktualisiert.";
+            }
+        }
+        else
+        {
+            await GalleryService.AddGroupAsync(new GalleryGroup
+            {
+                Name = groupName.Trim(),
+                Description = groupDescription?.Trim()
+            });
+
+            message = "Gruppe wurde angelegt.";
+        }
+
+        ResetGroupForm();
+        await LoadData();
     }
 
-    private async Task LoadImages()
+    private void StartGroupEdit(GalleryGroup group)
     {
-        images = await GalleryService.GetAllAsync();
+        editingGroupId = group.Id;
+        groupName = group.Name;
+        groupDescription = group.Description;
+        message = $"Bearbeite Gruppe '{group.Name}'.";
+    }
+
+    private void CancelGroupEdit()
+    {
+        ResetGroupForm();
+        message = "Bearbeitung abgebrochen.";
+    }
+
+    private async Task DeleteGroup(int groupId)
+    {
+        await GalleryService.DeleteGroupAsync(groupId);
+        message = "Gruppe wurde gelöscht.";
+        await LoadData();
+    }
+
+    private async Task AddImageToGroup(int groupId)
+    {
+        var imageId = selectedImageIds.GetValueOrDefault(groupId);
+
+        if (imageId <= 0)
+        {
+            message = "Bitte ein Bild auswählen.";
+            return;
+        }
+
+        await GalleryService.AddImageToGroupAsync(groupId, imageId);
+        selectedImageIds[groupId] = 0;
+        message = "Bild wurde der Gruppe hinzugefügt.";
+        await LoadData();
+    }
+
+    private async Task RemoveImageFromGroup(int groupImageId)
+    {
+        await GalleryService.RemoveImageFromGroupAsync(groupImageId);
+        message = "Bild wurde aus der Gruppe entfernt.";
+        await LoadData();
+    }
+
+    private async Task SavePageAssignment()
+    {
+        if (assignmentGroupId <= 0)
+        {
+            message = "Bitte eine Gruppe auswählen.";
+            return;
+        }
+
+        await GalleryService.SavePageAssignmentAsync(new PageGalleryAssignment
+        {
+            PageKey = assignmentPageKey,
+            PageTitle = string.IsNullOrWhiteSpace(assignmentPageTitle) ? assignmentPageKey : assignmentPageTitle.Trim(),
+            GalleryGroupId = assignmentGroupId,
+            SlideshowEnabled = assignmentSlideshowEnabled,
+            IntervalSeconds = Math.Clamp(assignmentIntervalSeconds, 2, 30)
+        });
+
+        message = "Seitenzuweisung wurde gespeichert.";
+        await LoadData();
+    }
+
+    private async Task DeletePageAssignment(int assignmentId)
+    {
+        await GalleryService.DeletePageAssignmentAsync(assignmentId);
+        message = "Seitenzuweisung wurde gelöscht.";
+        await LoadData();
     }
 
     private async Task DeleteImage(GalleryImage image)
     {
-        var relativePath = image.ImagePath.TrimStart('/');
-
-        var filePath = Path.Combine(
-            Environment.WebRootPath,
-            relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
-
+        FileUploadService.DeleteIfExists(image.ImagePath);
         await GalleryService.DeleteAsync(image.Id);
 
         message = "Bild wurde gelöscht.";
-        await LoadImages();
+        await LoadData();
+    }
+
+    private void ResetGroupForm()
+    {
+        groupName = "";
+        groupDescription = null;
+        editingGroupId = null;
     }
 }

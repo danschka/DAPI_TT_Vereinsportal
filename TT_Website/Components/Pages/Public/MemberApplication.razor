@@ -1,84 +1,83 @@
-﻿@page "/mitglied-werden"
+@page "/mitglied-werden"
 @rendermode InteractiveServer
 
+@using System.Net.Mail
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject MemberApplicationService MemberApplicationService
 @inject EmailService EmailService
 
-<h1>Mitglied werden</h1>
+<section class="page-hero compact">
+    <p class="eyebrow">Mitgliedschaft</p>
+    <h1>Mitglied werden</h1>
+    <p>Schick uns deine Daten. Der Verein meldet sich anschließend bei dir.</p>
+</section>
 
-<div>
-    <label>Vorname</label><br />
-    <InputText @bind-Value="application.FirstName" />
-</div>
+<section class="content-card form-card">
+    <div class="form-row">
+        <div>
+            <label class="form-label">Vorname</label>
+            <InputText class="form-control" @bind-Value="application.FirstName" />
+        </div>
+        <div>
+            <label class="form-label">Nachname</label>
+            <InputText class="form-control" @bind-Value="application.LastName" />
+        </div>
+    </div>
 
-<br />
+    <div class="form-row">
+        <div>
+            <label class="form-label">E-Mail</label>
+            <InputText class="form-control" @bind-Value="application.Email" />
+        </div>
+        <div>
+            <label class="form-label">Telefon</label>
+            <InputText class="form-control" @bind-Value="application.Phone" />
+        </div>
+    </div>
 
-<div>
-    <label>Nachname</label><br />
-    <InputText @bind-Value="application.LastName" />
-</div>
+    <div class="form-row">
+        <div>
+            <label class="form-label">Geburtsdatum</label>
+            <InputDate class="form-control" @bind-Value="application.BirthDate" />
+        </div>
+        <div>
+            <label class="form-label">Adresse</label>
+            <InputText class="form-control" @bind-Value="application.Address" />
+        </div>
+    </div>
 
-<br />
+    <label class="form-check">
+        <InputCheckbox @bind-Value="application.PrivacyPolicyAccepted" />
+        Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zur Bearbeitung des Mitgliedsantrags zu.
+    </label>
 
-<div>
-    <label>E-Mail</label><br />
-    <InputText @bind-Value="application.Email" />
-</div>
+    <button class="btn btn-primary" type="button" @onclick="SubmitApplication">Antrag absenden</button>
 
-<br />
-
-<div>
-    <label>Telefon</label><br />
-    <InputText @bind-Value="application.Phone" />
-</div>
-
-<br />
-
-<div>
-    <label>Geburtsdatum</label><br />
-    <InputDate @bind-Value="application.BirthDate" />
-</div>
-
-<br />
-
-<div>
-    <label>Adresse</label><br />
-    <InputText @bind-Value="application.Address" />
-</div>
-
-<br />
-
-<button type="button" @onclick="SubmitApplication">
-    Antrag absenden
-</button>
-
-@if (!string.IsNullOrWhiteSpace(message))
-{
-    <p>@message</p>
-}
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert @messageClass">@message</div>
+    }
+</section>
 
 @code {
-    private MembershipApplication application = new()
-    {
-        BirthDate = DateTime.Today
-    };
-
+    private MembershipApplication application = CreateEmptyApplication();
     private string message = "";
+    private string messageClass = "alert-info";
 
     private async Task SubmitApplication()
     {
-        if (string.IsNullOrWhiteSpace(application.FirstName) ||
-            string.IsNullOrWhiteSpace(application.LastName) ||
-            string.IsNullOrWhiteSpace(application.Email))
-        {
-            message = "Bitte mindestens Vorname, Nachname und E-Mail ausfüllen.";
+        if (!ValidateApplication())
             return;
-        }
 
+        application.FirstName = application.FirstName.Trim();
+        application.LastName = application.LastName.Trim();
+        application.Email = application.Email.Trim();
+        application.Phone = application.Phone.Trim();
+        application.Address = application.Address.Trim();
         application.SubmittedAt = DateTime.Now;
+        application.PrivacyPolicyAcceptedAt = DateTime.Now;
 
         await MemberApplicationService.AddAsync(application);
 
@@ -92,14 +91,70 @@
                 application.BirthDate,
                 application.Address);
 
-            message = "Dein Antrag wurde erfolgreich gespeichert und per E-Mail versendet.";
+            SetMessage("Dein Antrag wurde erfolgreich gespeichert und per E-Mail versendet.", "alert-success");
         }
         catch
         {
-            message = "Dein Antrag wurde gespeichert. Der E-Mail-Versand ist aktuell noch nicht eingerichtet.";
+            SetMessage("Dein Antrag wurde gespeichert. Der E-Mail-Versand ist aktuell noch nicht eingerichtet.", "alert-warning");
         }
 
-        application = new MembershipApplication
+        application = CreateEmptyApplication();
+    }
+
+    private bool ValidateApplication()
+    {
+        if (string.IsNullOrWhiteSpace(application.FirstName) ||
+            string.IsNullOrWhiteSpace(application.LastName) ||
+            string.IsNullOrWhiteSpace(application.Email) ||
+            string.IsNullOrWhiteSpace(application.Address))
+        {
+            SetMessage("Bitte Vorname, Nachname, E-Mail und Adresse ausfüllen.", "alert-warning");
+            return false;
+        }
+
+        if (!IsValidEmail(application.Email))
+        {
+            SetMessage("Bitte eine gültige E-Mail-Adresse eingeben.", "alert-warning");
+            return false;
+        }
+
+        if (application.BirthDate.Date > DateTime.Today)
+        {
+            SetMessage("Das Geburtsdatum darf nicht in der Zukunft liegen.", "alert-warning");
+            return false;
+        }
+
+        if (!application.PrivacyPolicyAccepted)
+        {
+            SetMessage("Bitte der Datenschutzerklärung zustimmen.", "alert-warning");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            _ = new MailAddress(email);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static MembershipApplication CreateEmptyApplication()
+    {
+        return new MembershipApplication
         {
             BirthDate = DateTime.Today
         };

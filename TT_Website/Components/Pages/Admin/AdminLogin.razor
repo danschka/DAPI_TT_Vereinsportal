@@ -1,42 +1,87 @@
-﻿@page "/admin/login"
-@rendermode InteractiveServer
+@page "/admin/login"
 
-@using TT_Website.Services
+<section class="admin-login-page">
+    <div class="admin-login-panel">
+        <div class="admin-login-brand">
+            <span>TT</span>
+            <div>
+                <p class="eyebrow">Administration</p>
+                <h1>TSV 1883 Bogen</h1>
+            </div>
+        </div>
 
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+        <p class="admin-login-copy">
+            Melde dich an, um News, Bilder, Mannschaften, Seiten und Einstellungen der Vereinswebsite zu verwalten.
+        </p>
 
-<h1>Admin Login</h1>
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert @messageCss">@message</div>
+        }
 
-<div>
-    <label>Passwort</label><br />
-    <InputText type="password" @bind-Value="password" />
-</div>
+        <form method="post" action="/admin/auth/login" class="admin-login-form">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
 
-<br />
+            <label class="form-label" for="admin-password">Passwort</label>
+            <input id="admin-password"
+                   class="form-control"
+                   name="password"
+                   type="password"
+                   autocomplete="current-password"
+                   autofocus
+                   required />
 
-<button type="button" @onclick="Login">
-    Einloggen
-</button>
-
-@if (!string.IsNullOrWhiteSpace(message))
-{
-    <p>@message</p>
-}
+            <button type="submit" class="btn btn-primary admin-login-submit">
+                Einloggen
+            </button>
+        </form>
+    </div>
+</section>
 
 @code {
-    private string password = "";
-    private string message = "";
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
 
-    private void Login()
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? LoggedOut { get; set; }
+
+    private string returnUrl = "/admin";
+    private string message = "";
+    private string messageCss = "alert-info";
+
+    protected override void OnInitialized()
     {
-        if (AuthService.Login(password))
+        returnUrl = GetSafeAdminReturnUrl(ReturnUrl);
+
+        if (!string.IsNullOrWhiteSpace(Error))
         {
-            NavigationManager.NavigateTo("/admin");
+            message = "Das Passwort ist nicht korrekt.";
+            messageCss = "alert-warning";
         }
-        else
+
+        if (!string.IsNullOrWhiteSpace(LoggedOut))
         {
-            message = "Falsches Passwort.";
+            message = "Du wurdest erfolgreich ausgeloggt.";
+            messageCss = "alert-success";
         }
+    }
+
+    private static string GetSafeAdminReturnUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            !value.StartsWith("/", StringComparison.Ordinal) ||
+            value.StartsWith("//", StringComparison.Ordinal) ||
+            !value.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("/admin/auth", StringComparison.OrdinalIgnoreCase) ||
+            value.StartsWith("/admin/login", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/admin";
+        }
+
+        return value;
     }
 }

@@ -1,0 +1,212 @@
+@page "/admin/pages"
+@rendermode InteractiveServer
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject ContentPageService ContentPageService
+@inject GalleryService GalleryService
+
+<h1>Seiteninhalte bearbeiten</h1>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert @messageClass">@message</div>
+}
+
+<section class="admin-grid">
+    <div class="content-card">
+        <h2>Text bearbeiten</h2>
+
+        <label class="form-label">Seite</label>
+        <InputSelect class="form-select" @bind-Value="selectedEditPageId" @bind-Value:after="LoadSelectedPage">
+            <option value="0">Seite wählen</option>
+            @foreach (var pageOption in pages)
+            {
+                <option value="@pageOption.Id">@GetPageLabel(pageOption)</option>
+            }
+        </InputSelect>
+
+        @if (currentPage.Id > 0)
+        {
+            <div class="form-text mb-3">
+                @currentPage.Title
+            </div>
+
+            <label class="form-label">Kurztext</label>
+            <InputTextArea class="form-control" @bind-Value="currentPage.Summary" />
+
+            <label class="form-label">Inhalt</label>
+            <InputTextArea class="form-control textarea-lg" @bind-Value="currentPage.Content" />
+
+            @if (currentPage.Slug == "vereinslokal")
+            {
+                <label class="form-check">
+                    <InputCheckbox @bind-Value="currentPage.ShowMap" />
+                    Google Maps anzeigen
+                </label>
+
+                @if (currentPage.ShowMap)
+                {
+                    <label class="form-label">Adresse</label>
+                    <InputText class="form-control" @bind-Value="currentPage.MapAddress" />
+
+                    <label class="form-label">Optionaler Embed-Link</label>
+                    <InputText class="form-control" @bind-Value="currentPage.MapEmbedUrl" />
+                }
+            }
+
+            <div class="button-row">
+                <button class="btn btn-primary" type="button" @onclick="SavePage">Speichern</button>
+            </div>
+        }
+    </div>
+
+    <div class="content-card">
+        <h2>Bildgruppen zuweisen</h2>
+
+        <label class="form-label">Seite</label>
+        <InputSelect class="form-select" @bind-Value="selectedPageId">
+            <option value="0">Seite wählen</option>
+            @foreach (var pageOption in pages)
+            {
+                <option value="@pageOption.Id">@GetPageLabel(pageOption)</option>
+            }
+        </InputSelect>
+
+        <label class="form-label">Bildgruppe</label>
+        <InputSelect class="form-select" @bind-Value="selectedGroupId">
+            <option value="0">Gruppe wählen</option>
+            @foreach (var group in groups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </InputSelect>
+
+        <button class="btn btn-primary" type="button" @onclick="AssignGroup">Bildgruppe hinzufügen</button>
+    </div>
+</section>
+
+<section class="content-card">
+    <h2>Seiten und Bildgruppen</h2>
+
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Seite</th>
+                <th>Galerien</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var contentPageItem in pages)
+            {
+                <tr>
+                    <td>@GetPageLabel(contentPageItem)</td>
+                    <td>
+                        @foreach (var assignment in contentPageItem.GalleryGroups)
+                        {
+                            <span class="badge bg-secondary me-1">@assignment.GalleryGroup?.Name</span>
+                            <button class="btn btn-link btn-sm" type="button" @onclick="() => RemoveGroup(assignment.Id)">entfernen</button>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-primary btn-sm" type="button" @onclick="() => EditPage(contentPageItem)">Bearbeiten</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
+@code {
+    private List<ContentPage> pages = [];
+    private List<GalleryGroup> groups = [];
+    private ContentPage currentPage = new();
+    private string message = "";
+    private string messageClass = "alert-info";
+    private int selectedEditPageId;
+    private int selectedPageId;
+    private int selectedGroupId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        pages = await ContentPageService.GetAllAsync();
+        groups = await GalleryService.GetGroupsAsync();
+    }
+
+    private void LoadSelectedPage()
+    {
+        var page = pages.FirstOrDefault(x => x.Id == selectedEditPageId);
+
+        if (page is not null)
+            EditPage(page);
+        else
+            currentPage = new ContentPage();
+    }
+
+    private async Task SavePage()
+    {
+        if (currentPage.Id == 0)
+        {
+            SetMessage("Bitte zuerst eine Seite auswählen.", "alert-warning");
+            return;
+        }
+
+        await ContentPageService.UpdateContentAsync(currentPage);
+        SetMessage("Seiteninhalt wurde gespeichert.", "alert-success");
+        await LoadData();
+    }
+
+    private void EditPage(ContentPage page)
+    {
+        selectedEditPageId = page.Id;
+        currentPage = new ContentPage
+        {
+            Id = page.Id,
+            Title = page.Title,
+            Slug = page.Slug,
+            Summary = page.Summary,
+            Content = page.Content,
+            ShowMap = page.ShowMap,
+            MapAddress = page.MapAddress,
+            MapEmbedUrl = page.MapEmbedUrl
+        };
+    }
+
+    private async Task AssignGroup()
+    {
+        if (selectedPageId <= 0 || selectedGroupId <= 0)
+        {
+            SetMessage("Bitte Seite und Bildgruppe auswählen.", "alert-warning");
+            return;
+        }
+
+        await ContentPageService.AssignGalleryGroupAsync(selectedPageId, selectedGroupId);
+        SetMessage("Bildgruppe wurde zugeordnet.", "alert-success");
+        await LoadData();
+    }
+
+    private async Task RemoveGroup(int assignmentId)
+    {
+        await ContentPageService.RemoveGalleryAssignmentAsync(assignmentId);
+        SetMessage("Bildgruppe wurde entfernt.", "alert-info");
+        await LoadData();
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
+    }
+
+    private static string GetPageLabel(ContentPage page)
+    {
+        return page.Parent is null ? page.Title : $"{page.Parent.Title} / {page.Title}";
+    }
+}

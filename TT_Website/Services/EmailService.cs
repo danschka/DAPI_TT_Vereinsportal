@@ -7,10 +7,14 @@ namespace TT_Website.Services;
 public class EmailService
 {
     private readonly IConfiguration _configuration;
+    private readonly SiteSettingsService _siteSettingsService;
 
-    public EmailService(IConfiguration configuration)
+    public EmailService(
+        IConfiguration configuration,
+        SiteSettingsService siteSettingsService)
     {
         _configuration = configuration;
+        _siteSettingsService = siteSettingsService;
     }
 
     public async Task SendMemberApplicationEmailAsync(
@@ -22,7 +26,10 @@ public class EmailService
         string address)
     {
         var fromEmail = GetRequiredSetting("EmailSettings:FromEmail");
-        var toEmail = GetRequiredSetting("EmailSettings:ToEmail");
+        var toEmail = await _siteSettingsService.GetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail);
+
+        if (string.IsNullOrWhiteSpace(toEmail))
+            toEmail = GetRequiredSetting("EmailSettings:ToEmail");
         var smtpServer = GetRequiredSetting("EmailSettings:SmtpServer");
         var smtpPort = int.Parse(GetRequiredSetting("EmailSettings:SmtpPort"));
         var username = GetRequiredSetting("EmailSettings:Username");

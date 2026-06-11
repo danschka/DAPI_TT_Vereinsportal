@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 
 @using TT_Website.Models
 @using TT_Website.Services
@@ -7,92 +7,159 @@
 @inject GalleryService GalleryService
 @inject SponsorService SponsorService
 
-<h1>TT-Vereinsportal</h1>
+<div class="preview-home">
+    <section class="preview-hero">
+        <PageSlideshow PageKey="home"
+                       CssClass="preview-hero-slideshow"
+                       ShowOverlay="true" />
 
-<p>
-    Willkommen auf der offiziellen Webseite unseres Tischtennisvereins.
-    Hier findest du aktuelle News, Informationen zum Verein, Downloads,
-    Bilder und die Möglichkeit, direkt Mitglied zu werden.
-</p>
+        <div class="preview-hero__content">
+            <p class="preview-kicker">TSV 1883 Bogen Tischtennis</p>
+            <h1>Training, Teamgeist und Punktspiele an einem Ort.</h1>
+            <p>
+                Aktuelle News, Trainingszeiten, Mannschaftsdaten und der schnelle Weg zur Mitgliedschaft
+                für alle, die Tischtennis spielen oder den Verein kennenlernen möchten.
+            </p>
 
-<a href="/mitglied-werden">Jetzt Mitglied werden</a>
-
-<hr />
-
-<h2>Aktuelle News</h2>
-
-@if (latestNews.Count == 0)
-{
-    <p>Keine News vorhanden.</p>
-}
-else
-{
-    @foreach (var post in latestNews)
-    {
-        <article>
-            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
-            {
-                <img src="@post.ImagePath" alt="@post.Title" style="max-width:300px;" />
-            }
-
-            <h3>@post.Title</h3>
-            <p>@post.CreatedAt.ToString("dd.MM.yyyy")</p>
-            <p>@post.Content</p>
-        </article>
-    }
-
-    <a href="/news">Alle News anzeigen</a>
-}
-
-<hr />
-
-<h2>Bildergalerie</h2>
-
-@if (latestImages.Count == 0)
-{
-    <p>Keine Bilder vorhanden.</p>
-}
-else
-{
-    <div class="gallery-grid">
-        @foreach (var image in latestImages)
-        {
-            <div class="gallery-card">
-                <img src="@image.ImagePath" alt="@image.Title" />
-                <p>@image.Title</p>
+            <div class="preview-actions">
+                <a class="btn btn-primary btn-lg" href="/mitglied-werden">Mitglied werden</a>
+                <a class="btn btn-outline-light btn-lg" href="/training">Trainingszeiten</a>
             </div>
-        }
-    </div>
+        </div>
+    </section>
 
-    <a href="/gallery">Zur Galerie</a>
-}
+    <section class="preview-section preview-quicklinks" aria-label="Schnelleinstiege">
+        <a class="preview-link-card" href="/mannschaften">
+            <span>Mannschaften</span>
+            <strong>Teams, Ligen und Spielpläne ansehen</strong>
+        </a>
+        <a class="preview-link-card" href="/news">
+            <span>News</span>
+            <strong>Aktuelles aus dem Verein lesen</strong>
+        </a>
+        <a class="preview-link-card" href="/kontakt">
+            <span>Kontakt</span>
+            <strong>Fragen stellen oder Probetraining anfragen</strong>
+        </a>
+    </section>
 
-<hr />
+    <section class="preview-section">
+        <div class="preview-section-header">
+            <div>
+                <p class="preview-kicker">Aktuell</p>
+                <h2>Neuigkeiten aus dem Verein</h2>
+            </div>
+            <a href="/news">Alle News</a>
+        </div>
 
-<h2>Sponsoren</h2>
-
-@if (sponsors.Count == 0)
-{
-    <p>Keine Sponsoren vorhanden.</p>
-}
-else
-{
-    <div class="sponsor-grid">
-        @foreach (var sponsor in sponsors)
+        @if (latestNews.Count == 0)
         {
-            <div class="sponsor-card">
-                @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+            <p class="preview-empty">Noch keine News vorhanden.</p>
+        }
+        else
+        {
+            <div class="preview-news-grid">
+                @foreach (var post in latestNews)
                 {
-                    <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                    <article class="preview-news-card">
+                        @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+                        {
+                            <img src="@post.ImagePath" alt="@post.Title" />
+                        }
+                        <div>
+                            <time datetime="@post.CreatedAt.ToString("yyyy-MM-dd")">
+                                @post.CreatedAt.ToString("dd.MM.yyyy")
+                            </time>
+                            <h3>@post.Title</h3>
+                            <p>@GetTeaser(post.Content)</p>
+                        </div>
+                    </article>
                 }
-
-                <h4>@sponsor.Name</h4>
             </div>
         }
-    </div>
+    </section>
 
-    <a href="/sponsors">Alle Sponsoren anzeigen</a>
-}
+    <section class="preview-section preview-split">
+        <div>
+            <p class="preview-kicker">Training</p>
+            <h2>Einsteigen, mitspielen, besser werden.</h2>
+            <p>
+                Jugend, Erwachsene und freies Training haben feste Zeiten. So finden neue Spielerinnen
+                und Spieler schnell den passenden Einstieg.
+            </p>
+            <a class="btn btn-primary" href="/training">Zum Training</a>
+        </div>
+
+        <div class="preview-training-list">
+            <div>
+                <span>Jugend</span>
+                <strong>Mo & Mi, 17:00 - 18:30 Uhr</strong>
+            </div>
+            <div>
+                <span>Erwachsene</span>
+                <strong>Mo & Mi, 19:00 - 21:30 Uhr</strong>
+            </div>
+            <div>
+                <span>Freies Training</span>
+                <strong>Fr, 18:00 - 21:00 Uhr</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="preview-section">
+        <div class="preview-section-header">
+            <div>
+                <p class="preview-kicker">Galerie</p>
+                <h2>Momente aus Halle und Vereinsleben</h2>
+            </div>
+            <a href="/gallery">Zur Galerie</a>
+        </div>
+
+        @if (latestImages.Count == 0)
+        {
+            <p class="preview-empty">Noch keine Bilder vorhanden.</p>
+        }
+        else
+        {
+            <div class="preview-gallery-strip">
+                @foreach (var image in latestImages)
+                {
+                    <figure>
+                        <img src="@image.ImagePath" alt="@image.Title" />
+                        <figcaption>@image.Title</figcaption>
+                    </figure>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="preview-section preview-sponsors">
+        <div>
+            <p class="preview-kicker">Partner</p>
+            <h2>Unterstützer des Vereins</h2>
+        </div>
+
+        @if (sponsors.Count == 0)
+        {
+            <p class="preview-empty">Noch keine Sponsoren vorhanden.</p>
+        }
+        else
+        {
+            <div class="preview-sponsor-row">
+                @foreach (var sponsor in sponsors.Take(6))
+                {
+                    <div class="preview-sponsor">
+                        @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                        {
+                            <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                        }
+                        <span>@sponsor.Name</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
 
 @code {
     private List<NewsPost> latestNews = new();
@@ -102,7 +169,17 @@ else
     protected override async Task OnInitializedAsync()
     {
         latestNews = await NewsService.GetLatestAsync(3);
-        latestImages = await GalleryService.GetLatestAsync(3);
+        latestImages = await GalleryService.GetLatestAsync(4);
         sponsors = await SponsorService.GetActiveAsync();
+    }
+
+    private static string GetTeaser(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "Mehr Informationen folgen in Kürze.";
+        }
+
+        return text.Length <= 140 ? text : $"{text[..137]}...";
     }
 }

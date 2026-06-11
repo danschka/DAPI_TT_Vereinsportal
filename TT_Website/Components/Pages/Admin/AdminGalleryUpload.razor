@@ -6,9 +6,7 @@
 @using TT_Website.Services
 
 @inject GalleryService GalleryService
-@inject IWebHostEnvironment Environment
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+@inject FileUploadService FileUploadService
 
 <h1>Bild hochladen</h1>
 
@@ -38,14 +36,6 @@
     private string title = "";
     private string message = "";
 
-    protected override void OnInitialized()
-    {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
-        }
-    }
-
     private void HandleFileUpload(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
@@ -69,27 +59,16 @@
                 return;
             }
 
-            var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
-
-            var folderPath = Path.Combine(
-                Environment.WebRootPath,
-                "uploads",
-                "gallery");
-
-            Directory.CreateDirectory(folderPath);
-
-            var uploadPath = Path.Combine(folderPath, fileName);
-
-            await using FileStream fs = new(uploadPath, FileMode.Create);
-
-            await selectedFile.OpenReadStream(
-                maxAllowedSize: 10 * 1024 * 1024)
-                .CopyToAsync(fs);
+            var imagePath = await FileUploadService.SaveAsync(
+                selectedFile,
+                "gallery",
+                UploadFileKind.Image,
+                10 * 1024 * 1024);
 
             var image = new GalleryImage
             {
                 Title = title,
-                ImagePath = $"/uploads/gallery/{fileName}"
+                ImagePath = imagePath
             };
 
             await GalleryService.AddAsync(image);

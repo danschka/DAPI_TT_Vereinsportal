@@ -1,12 +1,13 @@
-﻿@page "/admin/news/edit/{Id:int}"
+@page "/admin/news/edit/{Id:int}"
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.Components.Forms
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject NewsService NewsService
-@inject AuthService AuthService
 @inject NavigationManager NavigationManager
+@inject FileUploadService FileUploadService
 
 <h1>News bearbeiten</h1>
 
@@ -35,6 +36,31 @@ else
 
     <br />
 
+    @if (!string.IsNullOrWhiteSpace(newsPost.ImagePath))
+    {
+        <div>
+            <label>Aktuelles Bild</label><br />
+            <img src="@newsPost.ImagePath" alt="@newsPost.Title" style="max-width:200px;" />
+        </div>
+
+        <br />
+
+        <label>
+            <InputCheckbox @bind-Value="removeImage" />
+            Bild entfernen
+        </label>
+
+        <br />
+        <br />
+    }
+
+    <div>
+        <label>Neues Bild</label><br />
+        <InputFile OnChange="HandleFileSelected" />
+    </div>
+
+    <br />
+
     <label>
         <InputCheckbox @bind-Value="newsPost.IsPublished" />
         Veröffentlicht
@@ -58,15 +84,11 @@ else
 
     private NewsPost? newsPost;
     private string message = "";
+    private IBrowserFile? selectedFile;
+    private bool removeImage;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login");
-            return;
-        }
-
         newsPost = await NewsService.GetByIdAsync(Id);
 
         if (newsPost == null)
@@ -77,23 +99,52 @@ else
 
     private async Task SaveNews()
     {
-        if (newsPost == null)
-            return;
-
-        if (string.IsNullOrWhiteSpace(newsPost.Title) ||
-            string.IsNullOrWhiteSpace(newsPost.Content))
+        try
         {
-            message = "Bitte Titel und Inhalt eingeben.";
-            return;
+            if (newsPost == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(newsPost.Title) ||
+                string.IsNullOrWhiteSpace(newsPost.Content))
+            {
+                message = "Bitte Titel und Inhalt eingeben.";
+                return;
+            }
+
+            if (removeImage && !string.IsNullOrWhiteSpace(newsPost.ImagePath))
+            {
+                FileUploadService.DeleteIfExists(newsPost.ImagePath);
+                newsPost.ImagePath = null;
+            }
+
+            if (selectedFile != null)
+            {
+                FileUploadService.DeleteIfExists(newsPost.ImagePath);
+
+                newsPost.ImagePath = await FileUploadService.SaveAsync(
+                    selectedFile,
+                    "news",
+                    UploadFileKind.Image,
+                    10 * 1024 * 1024);
+            }
+
+            await NewsService.UpdateAsync(newsPost);
+
+            NavigationManager.NavigateTo("/admin/news");
         }
-
-        await NewsService.UpdateAsync(newsPost);
-
-        NavigationManager.NavigateTo("/admin/news");
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
     }
 
     private void Cancel()
     {
         NavigationManager.NavigateTo("/admin/news");
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
     }
 }

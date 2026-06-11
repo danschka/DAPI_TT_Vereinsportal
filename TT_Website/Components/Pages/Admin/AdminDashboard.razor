@@ -1,14 +1,16 @@
-﻿@page "/admin"
-@rendermode InteractiveServer
-
-@using TT_Website.Services
-
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+@page "/admin"
 
 <h1>Admin Dashboard</h1>
 
 <p>Willkommen im Administrationsbereich.</p>
+
+<div>
+    <h3>Seiten & Navigation</h3>
+    <a href="/admin/pages">Seiten verwalten</a><br />
+    <a href="/admin/settings">Einstellungen verwalten</a>
+</div>
+
+<hr />
 
 <div>
     <h3>Galerie</h3>
@@ -53,22 +55,9 @@
 
 <hr />
 
-<button type="button" @onclick="Logout">
-    Logout
-</button>
-
-@code {
-    protected override void OnInitialized()
-    {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login");
-        }
-    }
-
-    private void Logout()
-    {
-        AuthService.Logout();
-        NavigationManager.NavigateTo("/admin/login");
-    }
-}
+<form method="post" action="/admin/auth/logout">
+    <AntiforgeryToken />
+    <button type="submit">
+        Logout
+    </button>
+</form>

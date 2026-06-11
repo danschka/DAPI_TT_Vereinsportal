@@ -17,6 +17,89 @@ namespace TT_Website.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
 
+            modelBuilder.Entity("TT_Website.Models.ContentPage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MapAddress")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MapEmbedUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowInNavigation")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowMap")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("ContentPages");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.ContentPageGalleryGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ContentPageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GalleryGroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GalleryGroupId");
+
+                    b.HasIndex("ContentPageId", "GalleryGroupId")
+                        .IsUnique();
+
+                    b.ToTable("ContentPageGalleryGroups");
+                });
+
             modelBuilder.Entity("TT_Website.Models.DownloadDocument", b =>
                 {
                     b.Property<int>("Id")
@@ -37,6 +120,52 @@ namespace TT_Website.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DownloadDocuments");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.GalleryGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GalleryGroups");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.GalleryGroupImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GalleryGroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GalleryImageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GalleryImageId");
+
+                    b.HasIndex("GalleryGroupId", "GalleryImageId")
+                        .IsUnique();
+
+                    b.ToTable("GalleryGroupImages");
                 });
 
             modelBuilder.Entity("TT_Website.Models.GalleryImage", b =>
@@ -90,6 +219,12 @@ namespace TT_Website.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("PrivacyPolicyAccepted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("PrivacyPolicyAcceptedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("SubmittedAt")
                         .HasColumnType("TEXT");
 
@@ -124,6 +259,64 @@ namespace TT_Website.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("NewsPosts");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.PageGalleryAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GalleryGroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntervalSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PageKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PageTitle")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SlideshowEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GalleryGroupId");
+
+                    b.HasIndex("PageKey")
+                        .IsUnique();
+
+                    b.ToTable("PageGalleryAssignments");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.SiteSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("SiteSettings");
                 });
 
             modelBuilder.Entity("TT_Website.Models.Sponsor", b =>
@@ -172,6 +365,12 @@ namespace TT_Website.Migrations
                     b.Property<string>("MyTischtennisLeagueUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("MyTischtennisScheduleUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MyTischtennisStatisticsUrl")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -191,6 +390,145 @@ namespace TT_Website.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Teams");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.TeamRound", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("League")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MyTischtennisLeagueUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MyTischtennisScheduleUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MyTischtennisStatisticsUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RoundName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScheduleDataJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Season")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StatisticsDataJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TableDataJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId", "RoundName")
+                        .IsUnique();
+
+                    b.ToTable("TeamRounds");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.ContentPage", b =>
+                {
+                    b.HasOne("TT_Website.Models.ContentPage", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.ContentPageGalleryGroup", b =>
+                {
+                    b.HasOne("TT_Website.Models.ContentPage", "ContentPage")
+                        .WithMany("GalleryGroups")
+                        .HasForeignKey("ContentPageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TT_Website.Models.GalleryGroup", "GalleryGroup")
+                        .WithMany("ContentPageAssignments")
+                        .HasForeignKey("GalleryGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ContentPage");
+
+                    b.Navigation("GalleryGroup");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.GalleryGroupImage", b =>
+                {
+                    b.HasOne("TT_Website.Models.GalleryGroup", "GalleryGroup")
+                        .WithMany("Images")
+                        .HasForeignKey("GalleryGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TT_Website.Models.GalleryImage", "GalleryImage")
+                        .WithMany()
+                        .HasForeignKey("GalleryImageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GalleryGroup");
+
+                    b.Navigation("GalleryImage");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.PageGalleryAssignment", b =>
+                {
+                    b.HasOne("TT_Website.Models.GalleryGroup", "GalleryGroup")
+                        .WithMany("PageAssignments")
+                        .HasForeignKey("GalleryGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GalleryGroup");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.TeamRound", b =>
+                {
+                    b.HasOne("TT_Website.Models.Team", "Team")
+                        .WithMany("Rounds")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.ContentPage", b =>
+                {
+                    b.Navigation("Children");
+
+                    b.Navigation("GalleryGroups");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.GalleryGroup", b =>
+                {
+                    b.Navigation("ContentPageAssignments");
+
+                    b.Navigation("Images");
+
+                    b.Navigation("PageAssignments");
+                });
+
+            modelBuilder.Entity("TT_Website.Models.Team", b =>
+                {
+                    b.Navigation("Rounds");
                 });
 #pragma warning restore 612, 618
         }

@@ -34,6 +34,12 @@ public class SponsorService
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateAsync(Sponsor sponsor)
+    {
+        _context.Sponsors.Update(sponsor);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task DeleteAsync(int id)
     {
         var sponsor = await _context.Sponsors.FindAsync(id);

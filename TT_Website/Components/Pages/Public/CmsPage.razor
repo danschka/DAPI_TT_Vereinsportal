@@ -1,0 +1,85 @@
+@page "/seite/{Slug}"
+
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject ContentPageService ContentPageService
+
+@if (contentPage is null)
+{
+    <div class="alert alert-warning">Diese Seite ist noch nicht angelegt oder aktuell deaktiviert.</div>
+}
+else
+{
+    <section class="page-hero compact">
+        <p class="eyebrow">TSV 1883 Bogen Tischtennis</p>
+        <h1>@contentPage.Title</h1>
+        @if (!string.IsNullOrWhiteSpace(contentPage.Summary))
+        {
+            <p>@contentPage.Summary</p>
+        }
+    </section>
+
+    <section class="content-card cms-content">
+        @foreach (var paragraph in GetParagraphs(contentPage.Content))
+        {
+            <p>@paragraph</p>
+        }
+    </section>
+
+    @if (contentPage.ShowMap)
+    {
+        <section class="content-card">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Anfahrt</p>
+                    <h2>Vereinslokal</h2>
+                    @if (!string.IsNullOrWhiteSpace(contentPage.MapAddress))
+                    {
+                        <p>@contentPage.MapAddress</p>
+                    }
+                </div>
+            </div>
+
+            <iframe class="map-embed"
+                    src="@GetMapUrl(contentPage)"
+                    loading="lazy"
+                    allowfullscreen
+                    referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+        </section>
+    }
+
+    <ContentGalleryGroups Groups="contentPage.GalleryGroups" />
+}
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private ContentPage? contentPage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        contentPage = await ContentPageService.GetBySlugAsync(Slug);
+    }
+
+    private static IEnumerable<string> GetParagraphs(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return ["Diese Seite kann im Adminbereich mit Text und Bildern gefüllt werden."];
+
+        return content
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x));
+    }
+
+    private static string GetMapUrl(ContentPage currentPage)
+    {
+        if (!string.IsNullOrWhiteSpace(currentPage.MapEmbedUrl))
+            return currentPage.MapEmbedUrl;
+
+        var query = Uri.EscapeDataString(currentPage.MapAddress ?? "Bogen Deutschland");
+        return $"https://www.google.com/maps?q={query}&output=embed";
+    }
+}

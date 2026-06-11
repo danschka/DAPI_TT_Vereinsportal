@@ -5,6 +5,14 @@ using TT_Website.Models;
 
 namespace TT_Website.Services;
 
+public record TeamImportData(
+    string? League,
+    string? Season,
+    string TableDataJson,
+    string ScheduleDataJson,
+    string StatisticsDataJson,
+    DateTime LastSyncedAt);
+
 public class MyTischtennisImportService
 {
     private readonly HttpClient _httpClient;
@@ -20,30 +28,57 @@ public class MyTischtennisImportService
         if (string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))
             return;
 
-        if (!Uri.TryCreate(team.MyTischtennisLeagueUrl, UriKind.Absolute, out var url) ||
-            (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new InvalidOperationException("Die hinterlegte myTischtennis-URL ist ungültig.");
-        }
+        var url = CreateRequiredUri(team.MyTischtennisLeagueUrl, "myTischtennis-URL");
+        var statisticsUrl = TryCreateOptionalUri(team.MyTischtennisStatisticsUrl);
+        var scheduleUrl = TryCreateOptionalUri(team.MyTischtennisScheduleUrl, "myTischtennis-Spielplan-URL");
+        var importData = await ImportFromUrisAsync(url, statisticsUrl, scheduleUrl);
 
-        var scheduleDoc = await LoadFirstDocumentAsync(CreateScheduleUrlCandidates(url));
-        var statisticsDoc = await LoadFirstDocumentAsync(CreateStatisticsUrlCandidates(url));
+        team.League = importData.League;
+        team.Season = importData.Season;
+        team.TableDataJson = importData.TableDataJson;
+        team.ScheduleDataJson = importData.ScheduleDataJson;
+        team.StatisticsDataJson = importData.StatisticsDataJson;
+        team.LastSyncedAt = importData.LastSyncedAt;
+    }
+
+    public async Task<TeamImportData> ImportAsync(
+        string myTischtennisLeagueUrl,
+        string? myTischtennisStatisticsUrl = null,
+        string? myTischtennisScheduleUrl = null)
+    {
+        var url = CreateRequiredUri(myTischtennisLeagueUrl, "myTischtennis-URL");
+        var statisticsUrl = TryCreateOptionalUri(myTischtennisStatisticsUrl);
+        var scheduleUrl = TryCreateOptionalUri(myTischtennisScheduleUrl, "myTischtennis-Spielplan-URL");
+
+        return await ImportFromUrisAsync(url, statisticsUrl, scheduleUrl);
+    }
+
+    private async Task<TeamImportData> ImportFromUrisAsync(Uri url, Uri? statisticsUrl, Uri? scheduleUrl)
+    {
+        var statisticsSource = statisticsUrl ?? url;
+        var scheduleSource = scheduleUrl ?? statisticsSource;
+        var scheduleDoc = await LoadFirstDocumentAsync(CreateScheduleUrlCandidates(scheduleSource));
+        var statisticsDoc = await LoadFirstDocumentAsync(CreateStatisticsUrlCandidates(statisticsSource));
 
         var scheduleText = CleanMultilineText(scheduleDoc.DocumentNode.InnerText);
         var statisticsText = CleanMultilineText(statisticsDoc.DocumentNode.InnerText);
 
-        team.League = ExtractLeague(scheduleText, scheduleDoc) ?? ExtractLeague(statisticsText, statisticsDoc);
-        team.Season = ExtractSeason(scheduleText) ?? ExtractSeason(statisticsText);
+        var league = ExtractLeague(scheduleText, scheduleDoc) ?? ExtractLeague(statisticsText, statisticsDoc);
+        var season = ExtractSeason(scheduleText) ?? ExtractSeason(statisticsText);
 
         var scheduleTable = FindBestTable(scheduleDoc, GetScheduleTableScore);
-        var standingsTable = FindBestTable(scheduleDoc, table => GetStandingsTableScore(table, scheduleTable));
-        var statisticsTable = FindBestTable(statisticsDoc, table => GetStatisticsTableScore(table, null, null));
+        var standingsTable =
+            FindBestTable(statisticsDoc, table => GetStandingsTableScore(table, null)) ??
+            FindBestTable(scheduleDoc, table => GetStandingsTableScore(table, scheduleTable));
+        var statisticsTable = FindBestTable(statisticsDoc, table => GetStatisticsTableScore(table, null, standingsTable));
 
-        team.TableDataJson = SerializeRows(ReadTableRows(standingsTable));
-        team.ScheduleDataJson = SerializeRows(ReadScheduleRows(scheduleTable));
-        team.StatisticsDataJson = SerializeRows(ReadTableRows(statisticsTable));
-
-        team.LastSyncedAt = DateTime.Now;
+        return new TeamImportData(
+            league,
+            season,
+            SerializeRows(ReadTableRows(standingsTable)),
+            SerializeRows(ReadScheduleRows(scheduleTable)),
+            SerializeRows(ReadTableRows(statisticsTable)),
+            DateTime.Now);
     }
 
     private async Task<HtmlDocument> LoadFirstDocumentAsync(IEnumerable<Uri> urls)
@@ -69,6 +104,25 @@ public class MyTischtennisImportService
         throw lastException ?? new InvalidOperationException("Keine passende myTischtennis-URL konnte geladen werden.");
     }
 
+    private static Uri CreateRequiredUri(string value, string fieldName)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var url) ||
+            (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException($"Die hinterlegte {fieldName} ist ungültig.");
+        }
+
+        return url;
+    }
+
+    private static Uri? TryCreateOptionalUri(string? value, string fieldName = "myTischtennis-Statistik-URL")
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return CreateRequiredUri(value, fieldName);
+    }
+
     private async Task<HtmlDocument> LoadDocumentAsync(Uri url)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -78,30 +132,35 @@ public class MyTischtennisImportService
         response.EnsureSuccessStatusCode();
 
         var html = await response.Content.ReadAsStringAsync();
-
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
 
         return doc;
     }
 
-    private IEnumerable<Uri> CreateScheduleUrlCandidates(Uri source)
+    private static IEnumerable<Uri> CreateScheduleUrlCandidates(Uri source)
     {
         yield return ReplaceUrlPart(source, "spielerbilanzen", "spielplan");
         yield return ReplaceUrlPart(source, "spieler-bilanzen", "spielplan");
         yield return ReplaceUrlPart(source, "bilanzen", "spielplan");
+        yield return ReplaceUrlPart(source, "tabelle", "spielplan");
+        yield return ReplaceUrlPart(source, "tabelle", "begegnungen");
         yield return source;
     }
 
-    private IEnumerable<Uri> CreateStatisticsUrlCandidates(Uri source)
+    private static IEnumerable<Uri> CreateStatisticsUrlCandidates(Uri source)
     {
-        yield return source;
         yield return ReplaceUrlPart(source, "spielplan", "spielerbilanzen");
         yield return ReplaceUrlPart(source, "spielplan", "spieler-bilanzen");
         yield return ReplaceUrlPart(source, "spielplan", "bilanzen");
+        yield return ReplaceUrlPart(source, "tabelle", "spielerbilanzen");
+        yield return ReplaceUrlPart(source, "tabelle", "spieler-bilanzen");
+        yield return ReplaceUrlPart(source, "tabelle", "bilanzen");
+        yield return ReplaceUrlPart(source, "tabelle", "mannschaftsbilanzen");
+        yield return source;
     }
 
-    private Uri ReplaceUrlPart(Uri source, string oldValue, string newValue)
+    private static Uri ReplaceUrlPart(Uri source, string oldValue, string newValue)
     {
         var url = source.AbsoluteUri;
 
@@ -117,7 +176,7 @@ public class MyTischtennisImportService
         return new Uri(replacedUrl);
     }
 
-    private string? ExtractLeague(string text, HtmlDocument doc)
+    private static string? ExtractLeague(string text, HtmlDocument doc)
     {
         var heading = doc.DocumentNode
             .SelectNodes("//h1|//h2|//h3|//*[contains(@class,'headline') or contains(@class,'title')]")
@@ -142,7 +201,7 @@ public class MyTischtennisImportService
             .FirstOrDefault();
     }
 
-    private string? ExtractSeason(string text)
+    private static string? ExtractSeason(string text)
     {
         var seasonMatch = Regex.Match(text, @"\b20\d{2}\s*/\s*(?:20)?\d{2}\b");
 
@@ -159,7 +218,7 @@ public class MyTischtennisImportService
         return yearMatch.Success ? yearMatch.Value : null;
     }
 
-    private bool IsLeagueLine(string line)
+    private static bool IsLeagueLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line) || line.Length > 220)
             return false;
@@ -179,7 +238,7 @@ public class MyTischtennisImportService
             line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
-    private HtmlNode? FindBestTable(HtmlDocument doc, Func<HtmlNode, int> scoreSelector)
+    private static HtmlNode? FindBestTable(HtmlDocument doc, Func<HtmlNode, int> scoreSelector)
     {
         var tables = doc.DocumentNode.SelectNodes("//table");
 
@@ -198,7 +257,7 @@ public class MyTischtennisImportService
             .FirstOrDefault();
     }
 
-    private int GetScheduleTableScore(HtmlNode table)
+    private static int GetScheduleTableScore(HtmlNode table)
     {
         var text = CleanInlineText(table.InnerText);
         var score = 0;
@@ -221,7 +280,7 @@ public class MyTischtennisImportService
         return score;
     }
 
-    private int GetStandingsTableScore(HtmlNode table, HtmlNode? scheduleTable)
+    private static int GetStandingsTableScore(HtmlNode table, HtmlNode? scheduleTable)
     {
         if (scheduleTable is not null && ReferenceEquals(table, scheduleTable))
             return 0;
@@ -262,7 +321,7 @@ public class MyTischtennisImportService
         return score;
     }
 
-    private int GetStatisticsTableScore(HtmlNode table, HtmlNode? scheduleTable, HtmlNode? standingsTable)
+    private static int GetStatisticsTableScore(HtmlNode table, HtmlNode? scheduleTable, HtmlNode? standingsTable)
     {
         if (scheduleTable is not null && ReferenceEquals(table, scheduleTable))
             return 0;
@@ -288,7 +347,7 @@ public class MyTischtennisImportService
         return score;
     }
 
-    private List<List<string>> ReadTableRows(HtmlNode? table)
+    private static List<List<string>> ReadTableRows(HtmlNode? table)
     {
         if (table is null)
             return new List<List<string>>();
@@ -320,7 +379,7 @@ public class MyTischtennisImportService
         return result;
     }
 
-    private List<List<string>> ReadScheduleRows(HtmlNode? table)
+    private static List<List<string>> ReadScheduleRows(HtmlNode? table)
     {
         var rows = ReadTableRows(table);
 
@@ -358,29 +417,29 @@ public class MyTischtennisImportService
         return result.Count == 1 ? new List<List<string>>() : result;
     }
 
-    private string SerializeRows(List<List<string>> rows)
+    private static string SerializeRows(List<List<string>> rows)
     {
         return JsonSerializer.Serialize(rows, JsonOptions);
     }
 
-    private string GetValue(List<string> values, int index)
+    private static string GetValue(List<string> values, int index)
     {
         return index < values.Count ? values[index] : "";
     }
 
-    private bool IsResult(string value)
+    private static bool IsResult(string value)
     {
         return Regex.IsMatch(value, @"^\d+\s*:\s*\d+$");
     }
 
-    private string ExtractTime(string value)
+    private static string ExtractTime(string value)
     {
         var match = Regex.Match(value, @"\d{1,2}:\d{2}");
 
         return match.Success ? match.Value : CleanInlineText(value);
     }
 
-    private void TrimTrailingEmptyCells(List<string> values)
+    private static void TrimTrailingEmptyCells(List<string> values)
     {
         for (var index = values.Count - 1; index >= 0; index--)
         {
@@ -391,7 +450,7 @@ public class MyTischtennisImportService
         }
     }
 
-    private string CleanMultilineText(string text)
+    private static string CleanMultilineText(string text)
     {
         return string.Join(
             "\n",
@@ -401,7 +460,7 @@ public class MyTischtennisImportService
                 .Where(line => !string.IsNullOrWhiteSpace(line)));
     }
 
-    private string CleanInlineText(string text)
+    private static string CleanInlineText(string text)
     {
         var decodedText = HtmlEntity.DeEntitize(text);
 

@@ -6,11 +6,9 @@
 @using TT_Website.Services
 
 @inject DownloadService DownloadService
-@inject IWebHostEnvironment Environment
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+@inject FileUploadService FileUploadService
 
-<h1>Dokument hochladen</h1>
+<h1>Downloads verwalten</h1>
 
 <div>
     <InputText @bind-Value="title" placeholder="Titel" />
@@ -32,17 +30,43 @@
     <p>@message</p>
 }
 
+<hr />
+
+@if (documents.Count == 0)
+{
+    <p>Keine Dokumente vorhanden.</p>
+}
+else
+{
+    <div class="download-list">
+        @foreach (var document in documents)
+        {
+            <div class="download-card">
+                <h4>@document.Title</h4>
+                <p>Hochgeladen: @document.UploadedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                <a href="@document.FilePath" target="_blank">Dokument öffnen</a>
+                <button type="button" @onclick="() => DeleteDocument(document)">
+                    Löschen
+                </button>
+            </div>
+        }
+    </div>
+}
+
 @code {
+    private List<DownloadDocument> documents = new();
     private IBrowserFile? selectedFile;
     private string title = "";
     private string message = "";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
-        }
+        await LoadDocuments();
+    }
+
+    private async Task LoadDocuments()
+    {
+        documents = await DownloadService.GetAllAsync();
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -68,27 +92,16 @@
                 return;
             }
 
-            var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
-
-            var folderPath = Path.Combine(
-                Environment.WebRootPath,
-                "uploads",
-                "documents");
-
-            Directory.CreateDirectory(folderPath);
-
-            var uploadPath = Path.Combine(folderPath, fileName);
-
-            await using FileStream fs = new(uploadPath, FileMode.Create);
-
-            await selectedFile.OpenReadStream(
-                maxAllowedSize: 20 * 1024 * 1024)
-                .CopyToAsync(fs);
+            var filePath = await FileUploadService.SaveAsync(
+                selectedFile,
+                "documents",
+                UploadFileKind.Document,
+                20 * 1024 * 1024);
 
             var document = new DownloadDocument
             {
                 Title = title,
-                FilePath = $"/uploads/documents/{fileName}"
+                FilePath = filePath
             };
 
             await DownloadService.AddAsync(document);
@@ -97,10 +110,20 @@
 
             title = "";
             selectedFile = null;
+
+            await LoadDocuments();
         }
         catch (Exception ex)
         {
             message = ex.Message;
         }
+    }
+
+    private async Task DeleteDocument(DownloadDocument document)
+    {
+        FileUploadService.DeleteIfExists(document.FilePath);
+        await DownloadService.DeleteAsync(document.Id);
+        message = "Dokument wurde gelöscht.";
+        await LoadDocuments();
     }
 }

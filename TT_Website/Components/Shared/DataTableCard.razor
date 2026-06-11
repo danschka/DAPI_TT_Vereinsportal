@@ -1,0 +1,56 @@
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h4>@Title</h4>
+
+        @if (!Rows.Any())
+        {
+            <p class="text-muted">
+                @EmptyMessage
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-sm align-middle">
+                    <thead>
+                        <tr>
+                            @foreach (var cell in Rows[0])
+                            {
+                                <th>@cell</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Rows.Skip(1))
+                        {
+                            <tr>
+                                @for (var index = 0; index < ColumnCount; index++)
+                                {
+                                    <td>@GetCell(row, index)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string EmptyMessage { get; set; } = "";
+
+    [Parameter]
+    public IReadOnlyList<List<string>> Rows { get; set; } = [];
+
+    private int ColumnCount => Rows.Count == 0 ? 0 : Rows.Max(row => row.Count);
+
+    private string GetCell(List<string> row, int index)
+    {
+        return index < row.Count ? row[index] : "";
+    }
+}

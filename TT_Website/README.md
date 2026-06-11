@@ -1,18 +1,18 @@
 # TT-Vereinsportal
 
-Webplattform fuer einen Tischtennisverein auf Basis von ASP.NET Core Blazor.
+Webplattform für einen Tischtennisverein auf Basis von ASP.NET Core Blazor.
 
 ## Ziel
 
-Das Projekt bildet zentrale Vereinsinformationen in einer Webanwendung ab. Besucher koennen sich ueber Mannschaften, Training, News, Sponsoren und Downloads informieren. Ueber einen Adminbereich koennen Inhalte gepflegt und externe Mannschaftsdaten aus myTischtennis synchronisiert werden.
+Das Projekt bildet zentrale Vereinsinformationen in einer Webanwendung ab. Besucher können sich über Mannschaften, Training, News, Sponsoren und Downloads informieren. Über einen Adminbereich können Inhalte gepflegt und externe Mannschaftsdaten aus myTischtennis synchronisiert werden.
 
 ## Aktueller Funktionsumfang
 
-### Oeffentlicher Bereich
+### Öffentlicher Bereich
 
 - Startseite
 - Newsbereich
-- Mannschaftsuebersicht
+- Mannschaftsübersicht
 - Mannschaftsdetails mit myTischtennis-Daten
 - Trainingsseite
 - Bildergalerie
@@ -26,16 +26,16 @@ Das Projekt bildet zentrale Vereinsinformationen in einer Webanwendung ab. Besuc
 
 ### Adminbereich
 
-- Passwortgeschuetzter Adminbereich
+- Passwortgeschützter Adminbereich
 - Dashboard
 - News verwalten
 - Mannschaften verwalten
 - myTischtennis-URL pro Mannschaft speichern
 - Mannschaftsdaten synchronisieren
 - Sponsoren verwalten
-- Bilder hochladen und loeschen
+- Bilder hochladen und löschen
 - Dokumente hochladen
-- Mitgliedsantraege anzeigen
+- Mitgliedsanträge anzeigen
 
 ### myTischtennis-Import
 
@@ -47,7 +47,7 @@ Das Projekt bildet zentrale Vereinsinformationen in einer Webanwendung ab. Besuc
 - Import der Ligatabelle, sofern auf der myTischtennis-Spielplanseite vorhanden
 - Import der Mannschaftsstatistik
 - Getrennte Anzeige von Tabelle, Spielplan und Mannschaftsstatistik
-- Fehlerbehandlung bei fehlender oder ungueltiger URL
+- Fehlerbehandlung bei fehlender oder ungültiger URL
 
 ## Technologien
 
@@ -85,13 +85,13 @@ Als Vorlage dient:
 appsettings.Development.example.json
 ```
 
-Fuer die lokale Entwicklung kann daraus eine eigene Datei erstellt werden:
+Für die lokale Entwicklung kann daraus eine eigene Datei erstellt werden:
 
 ```txt
 appsettings.Development.json
 ```
 
-Diese Datei enthaelt lokale Werte wie Admin-Passwort und SMTP-Zugangsdaten und wird durch `.gitignore` ausgeschlossen.
+Diese Datei enthält lokale Werte wie Admin-Passwort und SMTP-Zugangsdaten und wird durch `.gitignore` ausgeschlossen.
 
 ## Datenbank und Uploads
 
@@ -102,11 +102,11 @@ SQLite-Datenbankdateien und hochgeladene Dateien werden lokal erzeugt und nicht 
 - `*.db-wal`
 - `wwwroot/uploads/**`
 
-Der Upload-Ordner bleibt ueber `wwwroot/uploads/.gitkeep` im Projekt vorhanden.
+Der Upload-Ordner bleibt über `wwwroot/uploads/.gitkeep` im Projekt vorhanden.
 
 ## Entwicklung
 
-Build ausfuehren:
+Build ausführen:
 
 ```bash
 dotnet build

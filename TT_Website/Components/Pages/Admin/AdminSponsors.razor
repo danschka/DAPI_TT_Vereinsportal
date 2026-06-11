@@ -1,4 +1,4 @@
-﻿@page "/admin/sponsors"
+@page "/admin/sponsors"
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Forms
@@ -6,9 +6,7 @@
 @using TT_Website.Services
 
 @inject SponsorService SponsorService
-@inject IWebHostEnvironment Environment
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
+@inject FileUploadService FileUploadService
 
 <h1>Sponsoren verwalten</h1>
 
@@ -24,6 +22,24 @@
 
 <br />
 
+@if (editMode && !string.IsNullOrWhiteSpace(existingLogoPath))
+{
+    <div>
+        <label>Aktuelles Logo</label><br />
+        <img src="@existingLogoPath" alt="@name" style="max-width:150px;" />
+    </div>
+
+    <br />
+
+    <label>
+        <InputCheckbox @bind-Value="removeLogo" />
+        Logo entfernen
+    </label>
+
+    <br />
+    <br />
+}
+
 <InputFile OnChange="HandleFileSelected" />
 
 <br />
@@ -37,9 +53,16 @@
 <br />
 <br />
 
-<button type="button" @onclick="AddSponsor">
-    Sponsor hinzufügen
+<button type="button" @onclick="SaveSponsor">
+    @(editMode ? "Änderungen speichern" : "Sponsor hinzufügen")
 </button>
+
+@if (editMode)
+{
+    <button type="button" @onclick="CancelEdit">
+        Abbrechen
+    </button>
+}
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
@@ -66,6 +89,10 @@ else
             <p>@sponsor.WebsiteUrl</p>
             <p>Aktiv: @sponsor.IsActive</p>
 
+            <button type="button" @onclick="() => StartEdit(sponsor)">
+                Bearbeiten
+            </button>
+
             <button type="button" @onclick="() => DeleteSponsor(sponsor)">
                 Löschen
             </button>
@@ -83,15 +110,13 @@ else
     private bool isActive = true;
     private IBrowserFile? selectedFile;
     private string message = "";
+    private bool editMode;
+    private int? editingSponsorId;
+    private string? existingLogoPath;
+    private bool removeLogo;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login", forceLoad: true);
-            return;
-        }
-
         await LoadSponsors();
     }
 
@@ -105,7 +130,7 @@ else
         selectedFile = e.File;
     }
 
-    private async Task AddSponsor()
+    private async Task SaveSponsor()
     {
         try
         {
@@ -119,42 +144,47 @@ else
 
             if (selectedFile != null)
             {
-                var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
-
-                var folderPath = Path.Combine(
-                    Environment.WebRootPath,
-                    "uploads",
-                    "sponsors");
-
-                Directory.CreateDirectory(folderPath);
-
-                var uploadPath = Path.Combine(folderPath, fileName);
-
-                await using FileStream fs = new(uploadPath, FileMode.Create);
-
-                await selectedFile.OpenReadStream(10 * 1024 * 1024)
-                    .CopyToAsync(fs);
-
-                logoPath = $"/uploads/sponsors/{fileName}";
+                logoPath = await FileUploadService.SaveAsync(
+                    selectedFile,
+                    "sponsors",
+                    UploadFileKind.Image,
+                    10 * 1024 * 1024);
             }
 
-            var sponsor = new Sponsor
+            if (editMode && editingSponsorId.HasValue)
             {
-                Name = name,
-                WebsiteUrl = NormalizeUrl(websiteUrl),
-                LogoPath = logoPath,
-                IsActive = isActive
-            };
+                if ((removeLogo || logoPath != null) && !string.IsNullOrWhiteSpace(existingLogoPath))
+                {
+                    FileUploadService.DeleteIfExists(existingLogoPath);
+                }
 
-            await SponsorService.AddAsync(sponsor);
+                var sponsor = new Sponsor
+                {
+                    Id = editingSponsorId.Value,
+                    Name = name,
+                    WebsiteUrl = NormalizeUrl(websiteUrl),
+                    LogoPath = removeLogo ? null : logoPath ?? existingLogoPath,
+                    IsActive = isActive
+                };
 
-            message = "Sponsor wurde gespeichert.";
+                await SponsorService.UpdateAsync(sponsor);
+                message = "Sponsor wurde aktualisiert.";
+            }
+            else
+            {
+                var sponsor = new Sponsor
+                {
+                    Name = name,
+                    WebsiteUrl = NormalizeUrl(websiteUrl),
+                    LogoPath = logoPath,
+                    IsActive = isActive
+                };
 
-            name = "";
-            websiteUrl = "";
-            selectedFile = null;
-            isActive = true;
+                await SponsorService.AddAsync(sponsor);
+                message = "Sponsor wurde gespeichert.";
+            }
 
+            ResetForm();
             await LoadSponsors();
         }
         catch (Exception ex)
@@ -165,24 +195,43 @@ else
 
     private async Task DeleteSponsor(Sponsor sponsor)
     {
-        if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
-        {
-            var relativePath = sponsor.LogoPath.TrimStart('/');
-
-            var filePath = Path.Combine(
-                Environment.WebRootPath,
-                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-        }
+        FileUploadService.DeleteIfExists(sponsor.LogoPath);
 
         await SponsorService.DeleteAsync(sponsor.Id);
 
         message = "Sponsor wurde gelöscht.";
         await LoadSponsors();
+    }
+
+    private void StartEdit(Sponsor sponsor)
+    {
+        editingSponsorId = sponsor.Id;
+        name = sponsor.Name;
+        websiteUrl = sponsor.WebsiteUrl;
+        isActive = sponsor.IsActive;
+        existingLogoPath = sponsor.LogoPath;
+        selectedFile = null;
+        removeLogo = false;
+        editMode = true;
+        message = $"Bearbeite '{sponsor.Name}'.";
+    }
+
+    private void CancelEdit()
+    {
+        ResetForm();
+        message = "Bearbeitung abgebrochen.";
+    }
+
+    private void ResetForm()
+    {
+        name = "";
+        websiteUrl = "";
+        selectedFile = null;
+        isActive = true;
+        editMode = false;
+        editingSponsorId = null;
+        existingLogoPath = null;
+        removeLogo = false;
     }
 
     private string? NormalizeUrl(string? url)

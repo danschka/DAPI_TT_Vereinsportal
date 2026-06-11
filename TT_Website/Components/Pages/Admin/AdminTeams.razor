@@ -31,9 +31,41 @@
     </div>
 
     <div class="mb-3">
-        <label class="form-label">myTischtennis URL</label>
+        <label class="form-label">myTischtennis Tabellen-/Statistik-URL</label>
         <input class="form-control" @bind="currentTeam.MyTischtennisLeagueUrl" />
     </div>
+
+    <div class="mb-3">
+        <label class="form-label">myTischtennis Spielplan-URL</label>
+        <input class="form-control" @bind="currentTeam.MyTischtennisScheduleUrl" />
+    </div>
+
+    @if (currentTeam.Category == "Jugend")
+    {
+        <div class="alert alert-info">
+            Jugendmannschaften können getrennte Links für Vor- und Rückrunde haben.
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Vorrunde Tabellen-/Statistik-URL</label>
+            <input class="form-control" @bind="firstRoundUrl" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Vorrunde Spielplan-URL</label>
+            <input class="form-control" @bind="firstRoundScheduleUrl" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Rückrunde Tabellen-/Statistik-URL</label>
+            <input class="form-control" @bind="secondRoundUrl" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Rückrunde Spielplan-URL</label>
+            <input class="form-control" @bind="secondRoundScheduleUrl" />
+        </div>
+    }
 
     <div class="form-check mb-3">
         <input class="form-check-input"
@@ -79,7 +111,6 @@ else
                 <th>Kategorie</th>
                 <th>Status</th>
                 <th>URL</th>
-                <th>Import</th>
                 <th></th>
             </tr>
         </thead>
@@ -110,27 +141,15 @@ else
                                 Öffnen
                             </a>
                         }
-                    </td>
-
-                    <td>
-                        @if (team.LastSyncedAt is null)
+                        @if (team.Rounds.Count > 0)
                         {
-                            <span class="text-muted">Noch nie</span>
-                        }
-                        else
-                        {
-                            @team.LastSyncedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                            <div class="text-muted small">
+                                @team.Rounds.Count Runden-Link(s)
+                            </div>
                         }
                     </td>
 
                     <td class="text-end">
-                        <button type="button"
-                                class="btn btn-outline-primary btn-sm me-2"
-                                disabled="@(syncingTeamId == team.Id || string.IsNullOrWhiteSpace(team.MyTischtennisLeagueUrl))"
-                                @onclick="() => SyncTeam(team.Id)">
-                            @(syncingTeamId == team.Id ? "Lädt..." : "Synchronisieren")
-                        </button>
-
                         <button type="button"
                                 class="btn btn-warning btn-sm me-2"
                                 @onclick="() => StartEdit(team)">
@@ -161,7 +180,10 @@ else
     private bool editMode = false;
     private string statusMessage = "";
     private string statusCssClass = "alert-info";
-    private int? syncingTeamId;
+    private string? firstRoundUrl;
+    private string? firstRoundScheduleUrl;
+    private string? secondRoundUrl;
+    private string? secondRoundScheduleUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -183,8 +205,10 @@ else
         }
 
         currentTeam.IsActive = true;
+        NormalizeTeamUrls();
 
         var syncResult = await TeamService.AddAsync(currentTeam);
+        await SaveYouthRounds(currentTeam.Id);
         await LoadTeams();
 
         statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
@@ -202,15 +226,36 @@ else
             Id = team.Id,
             Name = team.Name,
             Category = team.Category,
-            MyTischtennisLeagueUrl = team.MyTischtennisLeagueUrl,
+            MyTischtennisLeagueUrl = team.MyTischtennisStatisticsUrl ?? team.MyTischtennisLeagueUrl,
+            MyTischtennisStatisticsUrl = team.MyTischtennisStatisticsUrl,
+            MyTischtennisScheduleUrl = team.MyTischtennisScheduleUrl,
             IsActive = team.IsActive,
             League = team.League,
             Season = team.Season,
             TableDataJson = team.TableDataJson,
             ScheduleDataJson = team.ScheduleDataJson,
             StatisticsDataJson = team.StatisticsDataJson,
-            LastSyncedAt = team.LastSyncedAt
+            LastSyncedAt = team.LastSyncedAt,
+            Rounds = team.Rounds
         };
+
+        firstRoundUrl = team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Vorrunde")
+            ?.MyTischtennisStatisticsUrl ?? team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Vorrunde")
+            ?.MyTischtennisLeagueUrl;
+        firstRoundScheduleUrl = team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Vorrunde")
+            ?.MyTischtennisScheduleUrl;
+
+        secondRoundUrl = team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Rueckrunde")
+            ?.MyTischtennisStatisticsUrl ?? team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Rueckrunde")
+            ?.MyTischtennisLeagueUrl;
+        secondRoundScheduleUrl = team.Rounds
+            .FirstOrDefault(round => round.RoundName == "Rueckrunde")
+            ?.MyTischtennisScheduleUrl;
 
         editMode = true;
         statusCssClass = "alert-info";
@@ -226,7 +271,9 @@ else
             return;
         }
 
+        NormalizeTeamUrls();
         var syncResult = await TeamService.UpdateAsync(currentTeam);
+        await SaveYouthRounds(currentTeam.Id);
         await LoadTeams();
 
         statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
@@ -235,25 +282,6 @@ else
             : $"Mannschaft '{currentTeam.Name}' wurde aktualisiert. {syncResult.Message}";
 
         ResetForm();
-    }
-
-    private async Task SyncTeam(int id)
-    {
-        try
-        {
-            syncingTeamId = id;
-            statusMessage = "";
-
-            var syncResult = await TeamService.SyncTeamAsync(id);
-            await LoadTeams();
-
-            statusCssClass = syncResult.Success ? "alert-success" : "alert-warning";
-            statusMessage = syncResult.Message;
-        }
-        finally
-        {
-            syncingTeamId = null;
-        }
     }
 
     private async Task DeleteTeam(int id)
@@ -282,6 +310,63 @@ else
             IsActive = true
         };
 
+        firstRoundUrl = null;
+        firstRoundScheduleUrl = null;
+        secondRoundUrl = null;
+        secondRoundScheduleUrl = null;
         editMode = false;
+    }
+
+    private void NormalizeTeamUrls()
+    {
+        currentTeam.MyTischtennisStatisticsUrl = currentTeam.MyTischtennisLeagueUrl;
+    }
+
+    private async Task SaveYouthRounds(int teamId)
+    {
+        if (currentTeam.Category != "Jugend")
+        {
+            await TeamService.SaveRoundsAsync(
+                teamId,
+                new Dictionary<string, string?>
+                {
+                    ["Vorrunde"] = null,
+                    ["Rueckrunde"] = null
+                });
+            return;
+        }
+
+        await TeamService.SaveRoundsAsync(
+            teamId,
+            new Dictionary<string, string?>
+            {
+                ["Vorrunde"] = firstRoundUrl,
+                ["Rueckrunde"] = secondRoundUrl
+            },
+            new Dictionary<string, string?>
+            {
+                ["Vorrunde"] = firstRoundUrl,
+                ["Rueckrunde"] = secondRoundUrl
+            },
+            new Dictionary<string, string?>
+            {
+                ["Vorrunde"] = firstRoundScheduleUrl,
+                ["Rueckrunde"] = secondRoundScheduleUrl
+            });
+    }
+
+    private int GetRoundOrder(TeamRound round)
+    {
+        return round.RoundName switch
+        {
+            "Vorrunde" => 1,
+            "Rueckrunde" => 2,
+            _ => 99
+        };
+    }
+
+    private string GetRoundDisplayName(string roundName)
+    {
+        return roundName == "Rueckrunde" ? "Rückrunde" : roundName;
     }
 }

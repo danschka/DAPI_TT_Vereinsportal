@@ -1,4 +1,4 @@
-﻿@page "/admin/news"
+@page "/admin/news"
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Forms
@@ -6,9 +6,7 @@
 @using TT_Website.Services
 
 @inject NewsService NewsService
-@inject AuthService AuthService
-@inject NavigationManager NavigationManager
-@inject IWebHostEnvironment Environment
+@inject FileUploadService FileUploadService
 
 <h1>News verwalten</h1>
 
@@ -93,12 +91,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsLoggedIn)
-        {
-            NavigationManager.NavigateTo("/admin/login");
-            return;
-        }
-
         await LoadNews();
     }
 
@@ -127,23 +119,11 @@ else
 
             if (selectedFile != null)
             {
-                var fileName = $"{Guid.NewGuid()}_{selectedFile.Name}";
-
-                var folderPath = Path.Combine(
-                    Environment.WebRootPath,
-                    "uploads",
-                    "news");
-
-                Directory.CreateDirectory(folderPath);
-
-                var uploadPath = Path.Combine(folderPath, fileName);
-
-                await using FileStream fs = new(uploadPath, FileMode.Create);
-
-                await selectedFile.OpenReadStream(10 * 1024 * 1024)
-                    .CopyToAsync(fs);
-
-                imagePath = $"/uploads/news/{fileName}";
+                imagePath = await FileUploadService.SaveAsync(
+                    selectedFile,
+                    "news",
+                    UploadFileKind.Image,
+                    10 * 1024 * 1024);
             }
 
             var newsPost = new NewsPost
@@ -174,19 +154,7 @@ else
 
     private async Task DeleteNews(NewsPost post)
     {
-        if (!string.IsNullOrWhiteSpace(post.ImagePath))
-        {
-            var relativePath = post.ImagePath.TrimStart('/');
-
-            var filePath = Path.Combine(
-                Environment.WebRootPath,
-                relativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-        }
+        FileUploadService.DeleteIfExists(post.ImagePath);
 
         await NewsService.DeleteAsync(post.Id);
 

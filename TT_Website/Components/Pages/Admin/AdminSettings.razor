@@ -1,0 +1,36 @@
+@page "/admin/settings"
+@rendermode InteractiveServer
+
+@using TT_Website.Services
+
+@inject SiteSettingsService SiteSettingsService
+
+<h1>Einstellungen</h1>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert alert-success">@message</div>
+}
+
+<section class="content-card settings-form">
+    <label class="form-label">Ziel-E-Mail für Mitgliedsanträge</label>
+    <InputText class="form-control" @bind-Value="memberApplicationEmail" />
+
+    <button class="btn btn-primary" type="button" @onclick="SaveSettings">Speichern</button>
+</section>
+
+@code {
+    private string memberApplicationEmail = "";
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        memberApplicationEmail = await SiteSettingsService.GetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail) ?? "";
+    }
+
+    private async Task SaveSettings()
+    {
+        await SiteSettingsService.SetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail, memberApplicationEmail);
+        message = "Einstellungen wurden gespeichert.";
+    }
+}

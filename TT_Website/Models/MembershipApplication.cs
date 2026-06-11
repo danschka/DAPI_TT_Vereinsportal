@@ -12,5 +12,8 @@ public class MembershipApplication
     public DateTime BirthDate { get; set; } = DateTime.Today;
     public string Address { get; set; } = "";
 
+    public bool PrivacyPolicyAccepted { get; set; }
+    public DateTime? PrivacyPolicyAcceptedAt { get; set; }
+
     public DateTime SubmittedAt { get; set; } = DateTime.Now;
 }

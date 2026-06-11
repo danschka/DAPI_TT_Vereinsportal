@@ -8,6 +8,8 @@ public class Team
     public string Name { get; set; } = "";
     public string Category { get; set; } = "";
     public string? MyTischtennisLeagueUrl { get; set; }
+    public string? MyTischtennisStatisticsUrl { get; set; }
+    public string? MyTischtennisScheduleUrl { get; set; }
 
     public bool IsActive { get; set; } = true;
 
@@ -20,4 +22,6 @@ public class Team
     public string? StatisticsDataJson { get; set; }
 
     public DateTime? LastSyncedAt { get; set; }
+
+    public List<TeamRound> Rounds { get; set; } = new();
 }

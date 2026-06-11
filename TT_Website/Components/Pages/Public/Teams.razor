@@ -47,6 +47,15 @@ else
                                     Ligadaten können synchronisiert werden.
                                 </p>
                             }
+                            else if (team.Rounds.Any(round =>
+                                !string.IsNullOrWhiteSpace(round.MyTischtennisLeagueUrl) ||
+                                !string.IsNullOrWhiteSpace(round.MyTischtennisStatisticsUrl) ||
+                                !string.IsNullOrWhiteSpace(round.MyTischtennisScheduleUrl)))
+                            {
+                                <p class="text-muted">
+                                    Vor- und Rückrunde sind hinterlegt.
+                                </p>
+                            }
                             else
                             {
                                 <p class="text-muted">

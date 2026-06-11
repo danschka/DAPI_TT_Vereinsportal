@@ -1,0 +1,43 @@
+@using TT_Website.Models
+
+@if (Groups.Count > 0)
+{
+    <section class="content-gallery">
+        @foreach (var assignment in Groups.OrderBy(x => x.SortOrder))
+        {
+            var group = assignment.GalleryGroup;
+
+            if (group is null || group.Images.Count == 0)
+                continue;
+
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Galerie</p>
+                    <h2>@group.Name</h2>
+                    @if (!string.IsNullOrWhiteSpace(group.Description))
+                    {
+                        <p>@group.Description</p>
+                    }
+                </div>
+            </div>
+
+            <div class="image-grid">
+                @foreach (var image in group.Images.OrderBy(x => x.SortOrder))
+                {
+                    if (image.GalleryImage is null)
+                        continue;
+
+                    <figure class="image-tile">
+                        <img src="@image.GalleryImage.ImagePath" alt="@image.GalleryImage.Title" />
+                        <figcaption>@image.GalleryImage.Title</figcaption>
+                    </figure>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ContentPageGalleryGroup> Groups { get; set; } = [];
+}

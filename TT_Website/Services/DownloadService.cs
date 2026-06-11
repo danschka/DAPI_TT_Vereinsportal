@@ -26,6 +26,11 @@ public class DownloadService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<DownloadDocument?> GetByIdAsync(int id)
+    {
+        return await _context.DownloadDocuments.FindAsync(id);
+    }
+
     public async Task DeleteAsync(int id)
     {
         var document = await _context.DownloadDocuments.FindAsync(id);
