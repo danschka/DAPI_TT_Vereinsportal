@@ -9,73 +9,64 @@
 @inject NavigationManager NavigationManager
 @inject FileUploadService FileUploadService
 
-<h1>News bearbeiten</h1>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">News</p>
+        <h1>News bearbeiten</h1>
+        <p class="text-muted">Titel, Inhalt, Bild und Veröffentlichungsstatus ändern.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="/admin/news">Zurück</a>
+</section>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <p>@message</p>
+    <div class="alert alert-warning">@message</div>
 }
 
 @if (newsPost == null)
 {
-    <p>News wird geladen...</p>
+    <section class="content-card">
+        <p class="text-muted">News wird geladen...</p>
+    </section>
 }
 else
 {
-    <div>
-        <label>Titel</label><br />
-        <InputText @bind-Value="newsPost.Title" />
-    </div>
+    <section class="content-card form-card">
+        <label class="form-label">Titel</label>
+        <InputText class="form-control" @bind-Value="newsPost.Title" />
 
-    <br />
+        <label class="form-label">Inhalt</label>
+        <InputTextArea class="form-control textarea-lg" @bind-Value="newsPost.Content" />
 
-    <div>
-        <label>Inhalt</label><br />
-        <InputTextArea @bind-Value="newsPost.Content" />
-    </div>
+        @if (!string.IsNullOrWhiteSpace(newsPost.ImagePath))
+        {
+            <label class="form-label">Aktuelles Bild</label>
+            <img class="admin-preview-image" src="@newsPost.ImagePath" alt="@newsPost.Title" />
 
-    <br />
+            <label class="form-check admin-check">
+                <InputCheckbox class="form-check-input" @bind-Value="removeImage" />
+                <span>Bild entfernen</span>
+            </label>
+        }
 
-    @if (!string.IsNullOrWhiteSpace(newsPost.ImagePath))
-    {
-        <div>
-            <label>Aktuelles Bild</label><br />
-            <img src="@newsPost.ImagePath" alt="@newsPost.Title" style="max-width:200px;" />
-        </div>
+        <label class="form-label">Neues Bild</label>
+        <InputFile class="form-control" OnChange="HandleFileSelected" />
 
-        <br />
-
-        <label>
-            <InputCheckbox @bind-Value="removeImage" />
-            Bild entfernen
+        <label class="form-check admin-check">
+            <InputCheckbox class="form-check-input" @bind-Value="newsPost.IsPublished" />
+            <span>Veröffentlicht</span>
         </label>
 
-        <br />
-        <br />
-    }
+        <div class="button-row">
+            <button class="btn btn-primary" type="button" @onclick="SaveNews">
+                Speichern
+            </button>
 
-    <div>
-        <label>Neues Bild</label><br />
-        <InputFile OnChange="HandleFileSelected" />
-    </div>
-
-    <br />
-
-    <label>
-        <InputCheckbox @bind-Value="newsPost.IsPublished" />
-        Veröffentlicht
-    </label>
-
-    <br />
-    <br />
-
-    <button type="button" @onclick="SaveNews">
-        Speichern
-    </button>
-
-    <button type="button" @onclick="Cancel">
-        Abbrechen
-    </button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="Cancel">
+                Abbrechen
+            </button>
+        </div>
+    </section>
 }
 
 @code {
@@ -110,6 +101,9 @@ else
                 message = "Bitte Titel und Inhalt eingeben.";
                 return;
             }
+
+            newsPost.Title = newsPost.Title.Trim();
+            newsPost.Content = newsPost.Content.Trim();
 
             if (removeImage && !string.IsNullOrWhiteSpace(newsPost.ImagePath))
             {

@@ -1,36 +1,194 @@
 @page "/admin/settings"
 @rendermode InteractiveServer
 
+@using System.Net.Mail
 @using TT_Website.Services
 
 @inject SiteSettingsService SiteSettingsService
+@inject EmailService EmailService
 
 <h1>Einstellungen</h1>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <div class="alert alert-success">@message</div>
+    <div class="alert @messageClass">@message</div>
 }
 
 <section class="content-card settings-form">
-    <label class="form-label">Ziel-E-Mail für Mitgliedsanträge</label>
+    <h2>Allgemein</h2>
+
+    <label class="form-label">Ziel-E-Mail für Mitgliedsanträge und Stammdatenänderungen</label>
     <InputText class="form-control" @bind-Value="memberApplicationEmail" />
 
-    <button class="btn btn-primary" type="button" @onclick="SaveSettings">Speichern</button>
+    <label class="form-label">Link zur Vereinsrangliste</label>
+    <InputText class="form-control" @bind-Value="rankingUrl" />
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="SaveSettings">Speichern</button>
+    </div>
+</section>
+
+<section class="content-card">
+    <h2>E-Mail-Status</h2>
+
+    @if (emailStatus is null)
+    {
+        <p class="text-muted">Status wird geladen.</p>
+    }
+    else if (emailStatus.IsConfigured)
+    {
+        <div class="alert alert-success">@emailStatus.Message</div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <strong>@emailStatus.Message</strong>
+            <p class="mb-0">Fehlend oder ungültig: @string.Join(", ", emailStatus.Problems)</p>
+        </div>
+    }
+</section>
+
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Mitgliederentwicklung</h2>
+            <span>Datum und Wert für das Diagramm pflegen</span>
+        </div>
+        <button class="btn btn-outline-primary" type="button" @onclick="AddMemberDevelopmentEntry">
+            Eintrag hinzufügen
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Wert</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in memberDevelopmentEntries)
+                {
+                    <tr>
+                        <td>
+                            <InputDate class="form-control" @bind-Value="entry.Date" />
+                        </td>
+                        <td>
+                            <InputNumber class="form-control" @bind-Value="entry.Value" />
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => RemoveMemberDevelopmentEntry(entry)">
+                                Entfernen
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="SaveMemberDevelopment">
+            Mitgliederentwicklung speichern
+        </button>
+    </div>
 </section>
 
 @code {
     private string memberApplicationEmail = "";
+    private string rankingUrl = "";
     private string message = "";
+    private string messageClass = "alert-success";
+    private List<MemberDevelopmentFormEntry> memberDevelopmentEntries = [];
+    private EmailConfigurationStatus? emailStatus;
 
     protected override async Task OnInitializedAsync()
     {
-        memberApplicationEmail = await SiteSettingsService.GetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail) ?? "";
+        var storedEmail = await SiteSettingsService.GetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail) ?? "";
+        memberApplicationEmail = IsValidEmail(storedEmail) ? storedEmail : "";
+        rankingUrl = await SiteSettingsService.GetValueAsync(SiteSettingsService.RankingUrl) ?? "";
+        memberDevelopmentEntries = (await SiteSettingsService.GetMemberDevelopmentAsync())
+            .Select(x => new MemberDevelopmentFormEntry { Date = x.Date, Value = x.Value })
+            .ToList();
+        emailStatus = await EmailService.GetConfigurationStatusAsync();
     }
 
     private async Task SaveSettings()
     {
+        if (!string.IsNullOrWhiteSpace(memberApplicationEmail) && !IsValidEmail(memberApplicationEmail))
+        {
+            SetMessage("Bitte eine gültige Ziel-E-Mail-Adresse eintragen.", "alert-warning");
+            return;
+        }
+
         await SiteSettingsService.SetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail, memberApplicationEmail);
-        message = "Einstellungen wurden gespeichert.";
+        await SiteSettingsService.SetValueAsync(SiteSettingsService.RankingUrl, rankingUrl);
+        emailStatus = await EmailService.GetConfigurationStatusAsync();
+        SetMessage("Einstellungen wurden gespeichert.", "alert-success");
+    }
+
+    private void AddMemberDevelopmentEntry()
+    {
+        var nextDate = memberDevelopmentEntries.Count == 0
+            ? new DateTime(2014, 1, 1)
+            : memberDevelopmentEntries.Max(x => x.Date).AddYears(1);
+
+        memberDevelopmentEntries.Add(new MemberDevelopmentFormEntry
+        {
+            Date = nextDate > DateTime.Today.AddYears(1) ? DateTime.Today : nextDate,
+            Value = memberDevelopmentEntries.LastOrDefault()?.Value ?? 0
+        });
+    }
+
+    private void RemoveMemberDevelopmentEntry(MemberDevelopmentFormEntry entry)
+    {
+        memberDevelopmentEntries.Remove(entry);
+    }
+
+    private async Task SaveMemberDevelopment()
+    {
+        if (memberDevelopmentEntries.Any(x => x.Date.Year < 2014 || x.Date > DateTime.Today.AddYears(1) || x.Value < 0))
+        {
+            SetMessage("Bitte nur Daten ab 2014 und positive Werte eintragen.", "alert-warning");
+            return;
+        }
+
+        await SiteSettingsService.SetMemberDevelopmentAsync(
+            memberDevelopmentEntries.Select(x => new MemberDevelopmentEntry(x.Date, x.Value)));
+
+        memberDevelopmentEntries = memberDevelopmentEntries
+            .GroupBy(x => x.Date.Date)
+            .Select(group => group.Last())
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        SetMessage("Mitgliederentwicklung wurde gespeichert.", "alert-success");
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            _ = new MailAddress(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private sealed class MemberDevelopmentFormEntry
+    {
+        public DateTime Date { get; set; }
+        public int Value { get; set; }
     }
 }

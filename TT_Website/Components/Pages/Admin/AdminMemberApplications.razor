@@ -1,4 +1,4 @@
-﻿@page "/admin/member-applications"
+@page "/admin/member-applications"
 @rendermode InteractiveServer
 
 @using TT_Website.Models
@@ -6,45 +6,87 @@
 
 @inject MemberApplicationService MemberApplicationService
 
-<h1>Mitgliedsanträge</h1>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">Mitglieder</p>
+        <h1>Mitgliedsanträge</h1>
+        <p class="text-muted">Eingegangene Mitgliedsanfragen prüfen und verwalten.</p>
+    </div>
+</section>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <p>@message</p>
+    <div class="alert alert-info">@message</div>
 }
 
-@if (applications.Count == 0)
-{
-    <p>Keine Mitgliedsanträge vorhanden.</p>
-}
-else
-{
-    @foreach (var application in applications)
-    {
+<section class="content-card">
+    <div class="section-heading">
         <div>
-            <h4>@application.FirstName @application.LastName</h4>
-            <p>E-Mail: @application.Email</p>
-            <p>Telefon: @application.Phone</p>
-            <p>Geburtsdatum: @application.BirthDate.ToString("dd.MM.yyyy")</p>
-            <p>Adresse: @application.Address</p>
-            <p>Datenschutz akzeptiert: @(application.PrivacyPolicyAccepted ? "Ja" : "Nein")</p>
-            @if (application.PrivacyPolicyAcceptedAt.HasValue)
+            <h2>Anträge</h2>
+            <span>@applications.Count Antrag@(applications.Count == 1 ? "" : "e")</span>
+        </div>
+    </div>
+
+    @if (applications.Count == 0)
+    {
+        <p class="text-muted">Keine Mitgliedsanträge vorhanden.</p>
+    }
+    else
+    {
+        <div class="admin-list">
+            @foreach (var application in applications)
             {
-                <p>Akzeptiert am: @application.PrivacyPolicyAcceptedAt.Value.ToString("dd.MM.yyyy HH:mm")</p>
+                <article class="admin-list-item">
+                    <div class="admin-list-body">
+                        <div>
+                            <h3>@application.FirstName @application.LastName</h3>
+                            <p class="text-muted">Eingereicht: @application.SubmittedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                        </div>
+
+                        <dl class="admin-detail-list">
+                            <div>
+                                <dt>E-Mail</dt>
+                                <dd>@application.Email</dd>
+                            </div>
+                            <div>
+                                <dt>Telefon</dt>
+                                <dd>@application.Phone</dd>
+                            </div>
+                            <div>
+                                <dt>Geburtsdatum</dt>
+                                <dd>@application.BirthDate.ToString("dd.MM.yyyy")</dd>
+                            </div>
+                            <div>
+                                <dt>Adresse</dt>
+                                <dd>@application.Address</dd>
+                            </div>
+                            <div>
+                                <dt>Datenschutz</dt>
+                                <dd>@(application.PrivacyPolicyAccepted ? "Akzeptiert" : "Nicht akzeptiert")</dd>
+                            </div>
+                            @if (application.PrivacyPolicyAcceptedAt.HasValue)
+                            {
+                                <div>
+                                    <dt>Akzeptiert am</dt>
+                                    <dd>@application.PrivacyPolicyAcceptedAt.Value.ToString("dd.MM.yyyy HH:mm")</dd>
+                                </div>
+                            }
+                        </dl>
+                    </div>
+
+                    <div class="button-row admin-list-actions">
+                        <button class="btn btn-outline-secondary" type="button" @onclick="() => DeleteApplication(application.Id)">
+                            Löschen
+                        </button>
+                    </div>
+                </article>
             }
-            <p>Eingereicht: @application.SubmittedAt.ToString("dd.MM.yyyy HH:mm")</p>
-
-            <button type="button" @onclick="() => DeleteApplication(application.Id)">
-                Löschen
-            </button>
-
-            <hr />
         </div>
     }
-}
+</section>
 
 @code {
-    private List<MembershipApplication> applications = new();
+    private List<MembershipApplication> applications = [];
     private string message = "";
 
     protected override async Task OnInitializedAsync()
@@ -60,9 +102,7 @@ else
     private async Task DeleteApplication(int id)
     {
         await MemberApplicationService.DeleteAsync(id);
-
         message = "Mitgliedsantrag wurde gelöscht.";
-
         await LoadApplications();
     }
 }

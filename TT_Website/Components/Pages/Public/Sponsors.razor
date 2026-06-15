@@ -1,38 +1,55 @@
-﻿@page "/sponsors"
+@page "/sponsors"
 
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject SponsorService SponsorService
 
-<h1>Sponsoren</h1>
+<EditablePublicPageHeader Slug="sponsoren"
+                          Eyebrow="Partner"
+                          DefaultTitle="Sponsoren"
+                          DefaultSummary="Diese Unternehmen unterstützen unseren Verein und das Tischtennis in Bogen."
+                          ShowContent="true" />
 
 @if (sponsors.Count == 0)
 {
-    <p>Keine Sponsoren vorhanden.</p>
+    <section class="content-card">
+        <p class="text-muted">Keine Sponsoren vorhanden.</p>
+    </section>
 }
 else
 {
-    <div class="sponsor-grid">
-        @foreach (var sponsor in sponsors)
-        {
-            <div class="sponsor-card">
-                @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
-                {
-                    <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
-                }
+    <section class="content-card sponsor-showcase">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Unterstützer</p>
+                <h2>Partner des TSV 1883 Bogen Tischtennis</h2>
+            </div>
+            <span>@sponsors.Count aktive Sponsoren</span>
+        </div>
 
-                <h4>@sponsor.Name</h4>
-
-                @if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
+        <div class="sponsor-marquee" aria-label="Sponsorenlogos">
+            <div class="sponsor-track">
+                @foreach (var sponsor in GetMarqueeSponsors())
                 {
-                    <a href="@sponsor.WebsiteUrl" target="_blank">
-                        Zur Website
+                    <a class="sponsor-logo-tile"
+                       href="@GetSponsorUrl(sponsor)"
+                       target="@GetSponsorTarget(sponsor)"
+                       rel="@GetSponsorRel(sponsor)"
+                       aria-label="@sponsor.Name">
+                        @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                        {
+                            <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                        }
+                        else
+                        {
+                            <strong>@sponsor.Name</strong>
+                        }
                     </a>
                 }
             </div>
-        }
-    </div>
+        </div>
+    </section>
 }
 
 @code {
@@ -41,5 +58,25 @@ else
     protected override async Task OnInitializedAsync()
     {
         sponsors = await SponsorService.GetActiveAsync();
+    }
+
+    private IEnumerable<Sponsor> GetMarqueeSponsors()
+    {
+        return sponsors.Concat(sponsors);
+    }
+
+    private static string GetSponsorUrl(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? "#" : sponsor.WebsiteUrl;
+    }
+
+    private static string? GetSponsorTarget(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? null : "_blank";
+    }
+
+    private static string? GetSponsorRel(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? null : "noopener noreferrer";
     }
 }

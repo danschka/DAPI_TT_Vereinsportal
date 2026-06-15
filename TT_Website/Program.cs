@@ -27,6 +27,7 @@ namespace TT_Website
             builder.Services.AddScoped<EmailService>();
             builder.Services.AddScoped<NewsService>();
             builder.Services.AddHttpClient<MyTischtennisImportService>();
+            builder.Services.AddHttpClient<MyTischtennisNewsService>();
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<FileUploadService>();
             builder.Services.AddScoped<ContentPageService>();
@@ -65,6 +66,17 @@ namespace TT_Website
                 .AddInteractiveServerComponents();
 
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                dbContext.Database.Migrate();
+
+                var seedService = scope.ServiceProvider.GetRequiredService<SiteSeedService>();
+                seedService.SeedAsync(
+                    scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>(),
+                    scope.ServiceProvider.GetRequiredService<IConfiguration>()).GetAwaiter().GetResult();
+            }
 
             if (!app.Environment.IsDevelopment())
             {
@@ -150,17 +162,6 @@ namespace TT_Website
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
-
-            using (var scope = app.Services.CreateScope())
-            {
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                dbContext.Database.Migrate();
-
-                var seedService = scope.ServiceProvider.GetRequiredService<SiteSeedService>();
-                seedService.SeedAsync(
-                    scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>(),
-                    scope.ServiceProvider.GetRequiredService<IConfiguration>()).GetAwaiter().GetResult();
-            }
 
             app.Run();
         }

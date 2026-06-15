@@ -1,4 +1,4 @@
-﻿@page "/admin/download-upload"
+@page "/admin/download-upload"
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Forms
@@ -10,54 +10,70 @@
 
 <h1>Downloads verwalten</h1>
 
-<div>
-    <InputText @bind-Value="title" placeholder="Titel" />
-</div>
+<section class="content-card form-card">
+    <h2>Dokument hochladen</h2>
 
-<br />
+    <label class="form-label">Titel</label>
+    <InputText class="form-control" @bind-Value="title" placeholder="Titel des Dokuments" />
 
-<InputFile OnChange="HandleFileSelected" />
+    <label class="form-label">Datei</label>
+    <InputFile class="form-control" OnChange="HandleFileSelected" />
 
-<br />
-<br />
-
-<button type="button" @onclick="UploadDocument">
-    Hochladen
-</button>
-
-@if (!string.IsNullOrWhiteSpace(message))
-{
-    <p>@message</p>
-}
-
-<hr />
-
-@if (documents.Count == 0)
-{
-    <p>Keine Dokumente vorhanden.</p>
-}
-else
-{
-    <div class="download-list">
-        @foreach (var document in documents)
-        {
-            <div class="download-card">
-                <h4>@document.Title</h4>
-                <p>Hochgeladen: @document.UploadedAt.ToString("dd.MM.yyyy HH:mm")</p>
-                <a href="@document.FilePath" target="_blank">Dokument öffnen</a>
-                <button type="button" @onclick="() => DeleteDocument(document)">
-                    Löschen
-                </button>
-            </div>
-        }
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="UploadDocument">
+            Hochladen
+        </button>
     </div>
-}
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert @messageClass">@message</div>
+    }
+</section>
+
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Vorhandene Dokumente</h2>
+            <span>@documents.Count Dokument@(documents.Count == 1 ? "" : "e")</span>
+        </div>
+    </div>
+
+    @if (documents.Count == 0)
+    {
+        <p class="text-muted">Keine Dokumente vorhanden.</p>
+    }
+    else
+    {
+        <div class="download-list">
+            @foreach (var document in documents)
+            {
+                <div class="download-card">
+                    <div>
+                        <p class="download-card__type">Dokument</p>
+                        <h3>@document.Title</h3>
+                        <p class="text-muted">Hochgeladen: @document.UploadedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                    </div>
+                    <div class="button-row">
+                        <a class="btn btn-outline-primary" href="@document.FilePath" target="_blank" rel="noopener noreferrer">
+                            Öffnen
+                        </a>
+                        <button class="btn btn-outline-secondary" type="button" @onclick="() => DeleteDocument(document)">
+                            Löschen
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
 
 @code {
-    private List<DownloadDocument> documents = new();
+    private List<DownloadDocument> documents = [];
     private IBrowserFile? selectedFile;
     private string title = "";
     private string message = "";
+    private string messageClass = "alert-info";
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,16 +95,17 @@ else
         try
         {
             message = "Upload gestartet...";
+            messageClass = "alert-info";
 
             if (selectedFile == null)
             {
-                message = "Bitte Datei auswählen.";
+                SetMessage("Bitte Datei auswählen.", "alert-warning");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                message = "Bitte Titel eingeben.";
+                SetMessage("Bitte Titel eingeben.", "alert-warning");
                 return;
             }
 
@@ -100,22 +117,21 @@ else
 
             var document = new DownloadDocument
             {
-                Title = title,
+                Title = title.Trim(),
                 FilePath = filePath
             };
 
             await DownloadService.AddAsync(document);
 
-            message = "Dokument erfolgreich hochgeladen.";
-
             title = "";
             selectedFile = null;
+            SetMessage("Dokument erfolgreich hochgeladen.", "alert-success");
 
             await LoadDocuments();
         }
         catch (Exception ex)
         {
-            message = ex.Message;
+            SetMessage(ex.Message, "alert-danger");
         }
     }
 
@@ -123,7 +139,13 @@ else
     {
         FileUploadService.DeleteIfExists(document.FilePath);
         await DownloadService.DeleteAsync(document.Id);
-        message = "Dokument wurde gelöscht.";
+        SetMessage("Dokument wurde gelöscht.", "alert-info");
         await LoadDocuments();
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
     }
 }

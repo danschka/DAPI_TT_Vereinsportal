@@ -1,63 +1,72 @@
 @page "/admin"
 
-<h1>Admin Dashboard</h1>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">Administration</p>
+        <h1>Admin Dashboard</h1>
+        <p class="text-muted">Website-Inhalte, Mannschaften, Medien und Einstellungen zentral verwalten.</p>
+    </div>
 
-<p>Willkommen im Administrationsbereich.</p>
+    <form method="post" action="/admin/auth/logout">
+        <AntiforgeryToken />
+        <button class="btn btn-outline-secondary" type="submit">
+            Logout
+        </button>
+    </form>
+</section>
 
-<div>
-    <h3>Seiten & Navigation</h3>
-    <a href="/admin/pages">Seiten verwalten</a><br />
-    <a href="/admin/settings">Einstellungen verwalten</a>
-</div>
+<section class="admin-dashboard-grid">
+    <a class="admin-dashboard-card" href="/admin/pages">
+        <span>Seiten</span>
+        <strong>Seiten verwalten</strong>
+        <p>Texte, Inhalte und Galeriezuweisungen bearbeiten.</p>
+    </a>
 
-<hr />
+    <a class="admin-dashboard-card" href="/admin/settings">
+        <span>Einstellungen</span>
+        <strong>Einstellungen verwalten</strong>
+        <p>E-Mail, Rangliste und Mitgliederentwicklung pflegen.</p>
+    </a>
 
-<div>
-    <h3>Galerie</h3>
-    <a href="/admin/gallery">Galerie verwalten</a><br />
-    <a href="/admin/gallery-upload">Bild hochladen</a>
-</div>
+    <a class="admin-dashboard-card" href="/admin/gallery">
+        <span>Galerie</span>
+        <strong>Galerie verwalten</strong>
+        <p>Bildgruppen, Slideshow-Zuweisungen und Bilder organisieren.</p>
+    </a>
 
-<hr />
+    <a class="admin-dashboard-card" href="/admin/gallery-upload">
+        <span>Upload</span>
+        <strong>Bild hochladen</strong>
+        <p>Neue Bilder für Galerie, Seiten und Slideshow bereitstellen.</p>
+    </a>
 
-<div>
-    <h3>Downloads</h3>
-    <a href="/admin/download-upload">Dokument hochladen</a>
-</div>
+    <a class="admin-dashboard-card" href="/admin/download-upload">
+        <span>Downloads</span>
+        <strong>Dokumente verwalten</strong>
+        <p>PDFs und Dokumente für die öffentliche Download-Seite pflegen.</p>
+    </a>
 
-<hr />
+    <a class="admin-dashboard-card" href="/admin/sponsors">
+        <span>Sponsoren</span>
+        <strong>Sponsoren verwalten</strong>
+        <p>Sponsoren, Logos und Links hinzufügen oder bearbeiten.</p>
+    </a>
 
-<div>
-    <h3>Sponsoren</h3>
-    <a href="/admin/sponsors">Sponsoren verwalten</a>
-</div>
+    <a class="admin-dashboard-card" href="/admin/member-applications">
+        <span>Mitglieder</span>
+        <strong>Mitgliedsanträge anzeigen</strong>
+        <p>Eingegangene Mitgliedsanfragen prüfen und verwalten.</p>
+    </a>
 
-<hr />
+    <a class="admin-dashboard-card" href="/admin/news">
+        <span>News</span>
+        <strong>News verwalten</strong>
+        <p>Aktuelle Meldungen erstellen, veröffentlichen und bearbeiten.</p>
+    </a>
 
-<div>
-    <h3>Mitgliedsanträge</h3>
-    <a href="/admin/member-applications">Mitgliedsanträge anzeigen</a>
-</div>
-
-<hr />
-
-<div>
-    <h3>News</h3>
-    <a href="/admin/news">News verwalten</a><br />
-</div>
-
-<hr />
-
-<div>
-    <h3>Mannschaften</h3>
-    <a href="/admin/teams">Mannschaften verwalten</a><br />
-</div>
-
-<hr />
-
-<form method="post" action="/admin/auth/logout">
-    <AntiforgeryToken />
-    <button type="submit">
-        Logout
-    </button>
-</form>
+    <a class="admin-dashboard-card" href="/admin/teams">
+        <span>Mannschaften</span>
+        <strong>Mannschaften verwalten</strong>
+        <p>Teams und myTischtennis-Links pflegen und synchronisieren.</p>
+    </a>
+</section>

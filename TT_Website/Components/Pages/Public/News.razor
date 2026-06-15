@@ -1,44 +1,151 @@
-﻿@page "/news"
+@page "/news"
 
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject NewsService NewsService
+@inject MyTischtennisNewsService MyTischtennisNewsService
 
-<h1>News</h1>
+<EditablePublicPageHeader Slug="news"
+                          Eyebrow="Aktuelles"
+                          DefaultTitle="News"
+                          DefaultSummary="Neuigkeiten aus Training, Spielbetrieb, Vereinsleben und Jugendbereich."
+                          CssClass="news-hero"
+                          ShowContent="true" />
 
-@if (newsPosts.Count == 0)
-{
-    <p>Keine News vorhanden.</p>
-}
-else
-{
-    @foreach (var post in newsPosts)
-    {
-        <article>
-            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
-            {
-                <img src="@post.ImagePath" alt="@post.Title" style="max-width:300px;" />
-            }
+<section class="news-two-column-layout">
+    <section class="news-column">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Verein</p>
+                <h2>Vereinsnews</h2>
+            </div>
+        </div>
 
-            <h3>@post.Title</h3>
+        @if (newsPosts.Count == 0)
+        {
+            <div class="content-card empty-state">
+                <p class="eyebrow">Noch ruhig</p>
+                <h2>Keine News vorhanden</h2>
+                <p class="text-muted">Sobald neue Meldungen veröffentlicht werden, erscheinen sie hier.</p>
+            </div>
+        }
+        else
+        {
+            <div class="news-feature-grid news-feature-grid--compact">
+                @foreach (var post in newsPosts)
+                {
+                    <article class="news-card">
+                        @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+                        {
+                            <img src="@post.ImagePath" alt="@post.Title" />
+                        }
+                        else
+                        {
+                            <div class="news-card__placeholder news-card__logo-placeholder">
+                                <img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" />
+                            </div>
+                        }
 
-            <p>
-                @post.CreatedAt.ToString("dd.MM.yyyy HH:mm")
-            </p>
+                        <div class="news-card__body">
+                            <time datetime="@post.CreatedAt.ToString("yyyy-MM-dd")">
+                                @post.CreatedAt.ToString("dd.MM.yyyy")
+                            </time>
+                            <h2>@post.Title</h2>
+                            @foreach (var paragraph in GetParagraphs(post.Content))
+                            {
+                                <p>@paragraph</p>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
 
-            <p>@post.Content</p>
+    <aside class="news-column news-column--external">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Tischtennis</p>
+                <h2>myTischtennis News</h2>
+            </div>
+            <a class="btn btn-outline-primary" href="https://www.mytischtennis.de/news/alle-news" target="_blank" rel="noopener">
+                Öffnen
+            </a>
+        </div>
 
-            <hr />
-        </article>
-    }
-}
+        @if (!string.IsNullOrWhiteSpace(myTischtennisMessage))
+        {
+            <div class="content-card empty-state">
+                <p class="eyebrow">Externe News</p>
+                <h2>@myTischtennisMessage</h2>
+                <p class="text-muted">Die News können weiterhin direkt bei myTischtennis geöffnet werden.</p>
+            </div>
+        }
+        else
+        {
+            <div class="mytt-news-list">
+                @foreach (var item in myTischtennisNews)
+                {
+                    <a class="mytt-news-card" href="@item.Url" target="_blank" rel="noopener">
+                        @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                        {
+                            <img src="@item.ImageUrl" alt="" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="mytt-news-card__fallback">
+                                <img src="/vereinslogo.png" alt="" />
+                            </div>
+                        }
+
+                        <div>
+                            <span>myTischtennis</span>
+                            <h3>@item.Title</h3>
+                            @if (!string.IsNullOrWhiteSpace(item.Teaser))
+                            {
+                                <p>@item.Teaser</p>
+                            }
+                            <small>Quelle: https://www.mytischtennis.de/news/alle-news</small>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </aside>
+</section>
 
 @code {
     private List<NewsPost> newsPosts = new();
+    private IReadOnlyList<MyTischtennisNewsItem> myTischtennisNews = [];
+    private string? myTischtennisMessage;
 
     protected override async Task OnInitializedAsync()
     {
         newsPosts = await NewsService.GetPublishedAsync();
+
+        try
+        {
+            myTischtennisNews = await MyTischtennisNewsService.GetLatestAsync();
+
+            if (myTischtennisNews.Count == 0)
+            {
+                myTischtennisMessage = "Aktuell konnten keine myTischtennis-News gelesen werden.";
+            }
+        }
+        catch
+        {
+            myTischtennisMessage = "myTischtennis-News sind gerade nicht erreichbar.";
+        }
+    }
+
+    private static IEnumerable<string> GetParagraphs(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return [];
+
+        return content
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x));
     }
 }

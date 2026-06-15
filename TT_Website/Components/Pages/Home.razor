@@ -6,6 +6,7 @@
 @inject NewsService NewsService
 @inject GalleryService GalleryService
 @inject SponsorService SponsorService
+@inject ContentPageService ContentPageService
 
 <div class="preview-home">
     <section class="preview-hero">
@@ -15,10 +16,12 @@
 
         <div class="preview-hero__content">
             <p class="preview-kicker">TSV 1883 Bogen Tischtennis</p>
-            <h1>Training, Teamgeist und Punktspiele an einem Ort.</h1>
+            <h1>@HomeTitle</h1>
             <p>
-                Aktuelle News, Trainingszeiten, Mannschaftsdaten und der schnelle Weg zur Mitgliedschaft
+                @HomeSummary
+                @*
                 für alle, die Tischtennis spielen oder den Verein kennenlernen möchten.
+                *@
             </p>
 
             <div class="preview-actions">
@@ -134,9 +137,11 @@
     </section>
 
     <section class="preview-section preview-sponsors">
-        <div>
-            <p class="preview-kicker">Partner</p>
-            <h2>Unterstützer des Vereins</h2>
+        <div class="preview-section-header">
+            <div>
+                <p class="preview-kicker">Partner</p>
+                <h2>Unterstützer des Vereins</h2>
+            </div>
         </div>
 
         @if (sponsors.Count == 0)
@@ -145,17 +150,22 @@
         }
         else
         {
-            <div class="preview-sponsor-row">
-                @foreach (var sponsor in sponsors.Take(6))
-                {
-                    <div class="preview-sponsor">
-                        @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
-                        {
-                            <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
-                        }
-                        <span>@sponsor.Name</span>
-                    </div>
-                }
+            <div class="preview-sponsor-marquee" aria-label="Unterstützer des Vereins">
+                <div class="preview-sponsor-track">
+                    @foreach (var sponsor in GetSponsorLoop())
+                    {
+                        <a class="preview-sponsor-logo"
+                           href="@GetSponsorUrl(sponsor)"
+                           target="@GetSponsorTarget(sponsor)"
+                           rel="@GetSponsorRel(sponsor)"
+                           aria-label="@sponsor.Name">
+                            @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                            {
+                                <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                            }
+                        </a>
+                    }
+                </div>
             </div>
         }
     </section>
@@ -165,9 +175,17 @@
     private List<NewsPost> latestNews = new();
     private List<GalleryImage> latestImages = new();
     private List<Sponsor> sponsors = new();
+    private ContentPage? homePage;
+    private string HomeTitle => string.IsNullOrWhiteSpace(homePage?.Title)
+        ? "Training, Teamgeist und Punktspiele an einem Ort."
+        : homePage.Title;
+    private string HomeSummary => string.IsNullOrWhiteSpace(homePage?.Summary)
+        ? "Aktuelle News, Trainingszeiten, Mannschaftsdaten und der schnelle Weg zur Mitgliedschaft für alle, die Tischtennis spielen oder den Verein kennenlernen möchten."
+        : homePage.Summary;
 
     protected override async Task OnInitializedAsync()
     {
+        homePage = await ContentPageService.GetBySlugAsync("startseite");
         latestNews = await NewsService.GetLatestAsync(3);
         latestImages = await GalleryService.GetLatestAsync(4);
         sponsors = await SponsorService.GetActiveAsync();
@@ -181,5 +199,25 @@
         }
 
         return text.Length <= 140 ? text : $"{text[..137]}...";
+    }
+
+    private IEnumerable<Sponsor> GetSponsorLoop()
+    {
+        return sponsors.Concat(sponsors);
+    }
+
+    private static string GetSponsorUrl(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? "#" : sponsor.WebsiteUrl;
+    }
+
+    private static string? GetSponsorTarget(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? null : "_blank";
+    }
+
+    private static string? GetSponsorRel(Sponsor sponsor)
+    {
+        return string.IsNullOrWhiteSpace(sponsor.WebsiteUrl) ? null : "noopener noreferrer";
     }
 }

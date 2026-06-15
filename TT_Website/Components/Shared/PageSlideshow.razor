@@ -8,7 +8,16 @@
 
 @if (images.Count > 0)
 {
-    <div class="@CssClass" style="@BackgroundStyle">
+    <div class="@RootCssClass">
+        @for (var i = 0; i < images.Count; i++)
+        {
+            var image = images[i];
+            <div class="page-slideshow__slide @(i == currentIndex ? "is-active" : "")"
+                 style="@GetSlideStyle(image)"
+                 aria-hidden="@(i == currentIndex ? "false" : "true")">
+            </div>
+        }
+
         @if (ShowOverlay)
         {
             <div class="page-slideshow__overlay"></div>
@@ -55,10 +64,15 @@
     private GalleryImage? CurrentImage =>
         images.Count == 0 ? null : images[currentIndex];
 
-    private string BackgroundStyle =>
-        CurrentImage == null
-            ? ""
-            : $"background-image: url('{CurrentImage.ImagePath}');";
+    private string RootCssClass =>
+        string.IsNullOrWhiteSpace(CssClass) || CssClass == "page-slideshow"
+            ? "page-slideshow"
+            : $"page-slideshow {CssClass}";
+
+    private static string GetSlideStyle(GalleryImage image)
+    {
+        return $"background-image: url('{image.ImagePath}');";
+    }
 
     protected override async Task OnInitializedAsync()
     {

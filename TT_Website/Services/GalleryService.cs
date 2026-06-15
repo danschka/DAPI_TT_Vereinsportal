@@ -4,6 +4,8 @@ using TT_Website.Models;
 
 namespace TT_Website.Services;
 
+public record GalleryGroupImageResult(bool Success, string Message);
+
 public class GalleryService
 {
     private readonly AppDbContext _context;
@@ -16,6 +18,7 @@ public class GalleryService
     public async Task<List<GalleryImage>> GetAllAsync()
     {
         return await _context.GalleryImages
+            .AsNoTracking()
             .OrderByDescending(x => x.UploadedAt)
             .ToListAsync();
     }
@@ -23,6 +26,7 @@ public class GalleryService
     public async Task<List<GalleryGroup>> GetGroupsAsync()
     {
         return await _context.GalleryGroups
+            .AsNoTracking()
             .Include(x => x.Images)
             .ThenInclude(x => x.GalleryImage)
             .Include(x => x.PageAssignments)
@@ -33,6 +37,7 @@ public class GalleryService
     public async Task<GalleryGroup?> GetGroupByIdAsync(int id)
     {
         return await _context.GalleryGroups
+            .AsNoTracking()
             .Include(x => x.Images.OrderBy(image => image.SortOrder))
             .ThenInclude(x => x.GalleryImage)
             .Include(x => x.PageAssignments)
@@ -42,27 +47,37 @@ public class GalleryService
     public async Task<PageGalleryAssignment?> GetPageAssignmentAsync(string pageKey)
     {
         return await _context.PageGalleryAssignments
+            .AsNoTracking()
             .Include(x => x.GalleryGroup)
             .ThenInclude(x => x!.Images.OrderBy(image => image.SortOrder))
             .ThenInclude(x => x.GalleryImage)
             .FirstOrDefaultAsync(x => x.PageKey == pageKey);
     }
 
-    public async Task AddAsync(GalleryImage image)
+    public async Task<GalleryImage> AddAsync(GalleryImage image)
     {
         _context.GalleryImages.Add(image);
         await _context.SaveChangesAsync();
+        return image;
     }
 
-    public async Task AddGroupAsync(GalleryGroup group)
+    public async Task<GalleryGroup> AddGroupAsync(GalleryGroup group)
     {
         _context.GalleryGroups.Add(group);
         await _context.SaveChangesAsync();
+        return group;
     }
 
     public async Task UpdateGroupAsync(GalleryGroup group)
     {
-        _context.GalleryGroups.Update(group);
+        var existingGroup = await _context.GalleryGroups.FindAsync(group.Id);
+
+        if (existingGroup is null)
+            return;
+
+        existingGroup.Name = group.Name;
+        existingGroup.Description = group.Description;
+
         await _context.SaveChangesAsync();
     }
 
@@ -77,13 +92,21 @@ public class GalleryService
         await _context.SaveChangesAsync();
     }
 
-    public async Task AddImageToGroupAsync(int groupId, int imageId)
+    public async Task<GalleryGroupImageResult> AddImageToGroupAsync(int groupId, int imageId)
     {
+        var groupExists = await _context.GalleryGroups.AnyAsync(x => x.Id == groupId);
+        if (!groupExists)
+            return new GalleryGroupImageResult(false, "Die Bildgruppe wurde nicht gefunden.");
+
+        var imageExists = await _context.GalleryImages.AnyAsync(x => x.Id == imageId);
+        if (!imageExists)
+            return new GalleryGroupImageResult(false, "Das ausgewählte Bild wurde nicht gefunden.");
+
         var exists = await _context.GalleryGroupImages
             .AnyAsync(x => x.GalleryGroupId == groupId && x.GalleryImageId == imageId);
 
         if (exists)
-            return;
+            return new GalleryGroupImageResult(false, "Dieses Bild ist bereits in der Gruppe.");
 
         var nextSortOrder = await _context.GalleryGroupImages
             .Where(x => x.GalleryGroupId == groupId)
@@ -98,6 +121,7 @@ public class GalleryService
         });
 
         await _context.SaveChangesAsync();
+        return new GalleryGroupImageResult(true, "Bild wurde der Gruppe hinzugefügt.");
     }
 
     public async Task RemoveImageFromGroupAsync(int groupImageId)
@@ -161,6 +185,7 @@ public class GalleryService
     public async Task<List<GalleryImage>> GetLatestAsync(int count)
     {
         return await _context.GalleryImages
+            .AsNoTracking()
             .OrderByDescending(x => x.UploadedAt)
             .Take(count)
             .ToListAsync();

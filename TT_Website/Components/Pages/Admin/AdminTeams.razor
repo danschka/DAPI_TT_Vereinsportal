@@ -6,15 +6,21 @@
 
 @inject TeamService TeamService
 
-<h3>Mannschaften verwalten</h3>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">Mannschaften</p>
+        <h1>Mannschaften verwalten</h1>
+        <p class="text-muted">Teams, Kategorien und myTischtennis-Links pflegen.</p>
+    </div>
+</section>
 
 @if (!string.IsNullOrWhiteSpace(statusMessage))
 {
     <div class="alert @statusCssClass">@statusMessage</div>
 }
 
-<div class="card p-4 mb-4">
-    <h5>@(editMode ? "Mannschaft bearbeiten" : "Neue Mannschaft")</h5>
+<section class="content-card form-card">
+    <h2>@(editMode ? "Mannschaft bearbeiten" : "Neue Mannschaft")</h2>
 
     <div class="mb-3">
         <label class="form-label">Name</label>
@@ -79,11 +85,11 @@
 
     @if (editMode)
     {
-        <button type="button" class="btn btn-success me-2" @onclick="UpdateTeam">
+        <button type="button" class="btn btn-primary me-2" @onclick="UpdateTeam">
             Änderungen speichern
         </button>
 
-        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">
             Abbrechen
         </button>
     }
@@ -93,17 +99,24 @@
             Mannschaft anlegen
         </button>
     }
-</div>
+</section>
 
-@if (!teams.Any())
-{
-    <div class="alert alert-warning">
-        Noch keine Mannschaften vorhanden.
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Vorhandene Mannschaften</h2>
+            <span>@teams.Count Mannschaft@(teams.Count == 1 ? "" : "en")</span>
+        </div>
     </div>
-}
-else
-{
-    <table class="table table-striped align-middle">
+
+    @if (!teams.Any())
+    {
+        <p class="text-muted">Noch keine Mannschaften vorhanden.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
         <thead>
             <tr>
                 <th>ID</th>
@@ -151,13 +164,13 @@ else
 
                     <td class="text-end">
                         <button type="button"
-                                class="btn btn-warning btn-sm me-2"
+                                class="btn btn-outline-primary btn-sm me-2"
                                 @onclick="() => StartEdit(team)">
                             Bearbeiten
                         </button>
 
                         <button type="button"
-                                class="btn btn-danger btn-sm"
+                                class="btn btn-outline-secondary btn-sm"
                                 @onclick="() => DeleteTeam(team.Id)">
                             Löschen
                         </button>
@@ -165,8 +178,10 @@ else
                 </tr>
             }
         </tbody>
-    </table>
-}
+            </table>
+        </div>
+    }
+</section>
 
 @code {
     private List<Team> teams = [];

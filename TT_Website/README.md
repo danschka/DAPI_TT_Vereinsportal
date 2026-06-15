@@ -1,125 +1,127 @@
-# TT-Vereinsportal
+# TT_Website
 
-Webplattform für einen Tischtennisverein auf Basis von ASP.NET Core Blazor.
+ASP.NET Core Blazor Web App fuer das Vereinsportal des TSV 1883 Bogen Tischtennis.
 
-## Ziel
+## Voraussetzungen
 
-Das Projekt bildet zentrale Vereinsinformationen in einer Webanwendung ab. Besucher können sich über Mannschaften, Training, News, Sponsoren und Downloads informieren. Über einen Adminbereich können Inhalte gepflegt und externe Mannschaftsdaten aus myTischtennis synchronisiert werden.
+- .NET 10 SDK
+- Visual Studio Code oder Visual Studio
+- Git optional
 
-## Aktueller Funktionsumfang
+## Projekt Starten
 
-### Öffentlicher Bereich
-
-- Startseite
-- Newsbereich
-- Mannschaftsübersicht
-- Mannschaftsdetails mit myTischtennis-Daten
-- Trainingsseite
-- Bildergalerie
-- Sponsorenanzeige
-- Downloadbereich
-- Kontaktseite
-- Links
-- Impressum
-- Datenschutz
-- Mitgliedsantrag
-
-### Adminbereich
-
-- Passwortgeschützter Adminbereich
-- Dashboard
-- News verwalten
-- Mannschaften verwalten
-- myTischtennis-URL pro Mannschaft speichern
-- Mannschaftsdaten synchronisieren
-- Sponsoren verwalten
-- Bilder hochladen und löschen
-- Dokumente hochladen
-- Mitgliedsanträge anzeigen
-
-### myTischtennis-Import
-
-- Automatische Synchronisierung pro Mannschaft
-- Ableitung der passenden Spielplan-URL aus einer Spielerbilanz-URL
-- Import von Ligainformationen
-- Import der Saison
-- Import des Spielplans
-- Import der Ligatabelle, sofern auf der myTischtennis-Spielplanseite vorhanden
-- Import der Mannschaftsstatistik
-- Getrennte Anzeige von Tabelle, Spielplan und Mannschaftsstatistik
-- Fehlerbehandlung bei fehlender oder ungültiger URL
-
-## Technologien
-
-- ASP.NET Core Blazor Web App
-- C#
-- Razor Components
-- Entity Framework Core
-- SQLite
-- Bootstrap
-- MailKit
-- HtmlAgilityPack
-
-## Projektstruktur
-
-```txt
-Components/
-  Layout/
-  Pages/
-    Admin/
-    Public/
-Data/
-Models/
-Services/
-Migrations/
-wwwroot/
-```
-
-## Lokale Konfiguration
-
-Sensible lokale Einstellungen werden nicht in Git gespeichert.
-
-Als Vorlage dient:
-
-```txt
-appsettings.Development.example.json
-```
-
-Für die lokale Entwicklung kann daraus eine eigene Datei erstellt werden:
-
-```txt
-appsettings.Development.json
-```
-
-Diese Datei enthält lokale Werte wie Admin-Passwort und SMTP-Zugangsdaten und wird durch `.gitignore` ausgeschlossen.
-
-## Datenbank und Uploads
-
-SQLite-Datenbankdateien und hochgeladene Dateien werden lokal erzeugt und nicht ins Repository eingecheckt:
-
-- `*.db`
-- `*.db-shm`
-- `*.db-wal`
-- `wwwroot/uploads/**`
-
-Der Upload-Ordner bleibt über `wwwroot/uploads/.gitkeep` im Projekt vorhanden.
-
-## Entwicklung
-
-Build ausführen:
+### Variante 1: Repository klonen
 
 ```bash
+git clone <repo-url>
+cd TT_Website
+dotnet restore
 dotnet build
-```
-
-Anwendung starten:
-
-```bash
 dotnet run
 ```
 
-EF-Core-Migrationen anwenden:
+### Variante 2: ZIP herunterladen
+
+1. ZIP entpacken.
+2. Terminal im Projektordner oeffnen, also im Ordner mit `TT_Website.csproj`.
+3. Projekt starten:
 
 ```bash
-dotnet ef database update
+dotnet restore
+dotnet build
+dotnet run
 ```
+
+Danach die URL oeffnen, die im Terminal bei `Now listening on` angezeigt wird.
+
+## Admin Login
+
+Standardpasswort:
+
+```txt
+admin123
+```
+
+Das Passwort steht fuer den einfachen lokalen Start in `appsettings.json`. Fuer eine echte Veroeffentlichung sollte es geaendert und nicht oeffentlich dokumentiert werden.
+
+## Datenbank
+
+Die Anwendung verwendet SQLite.
+
+Die SQLite-Datenbank wird beim ersten Start automatisch ueber EF-Core-Migrationen erstellt. Die Datenbankdatei wird lokal erzeugt und nicht ins Repository eingecheckt.
+
+Die aktive Connection-String-Vorgabe steht in `appsettings.json`:
+
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Data Source=tt_website.db"
+}
+```
+
+Der Ordner `Migrations/` gehoert zum Quellcode und muss im Repository bleiben.
+
+## E-Mail
+
+SMTP-Zugangsdaten werden nicht im Repository gespeichert.
+
+`appsettings.json` enthaelt nur leere Platzhalter:
+
+```json
+"EmailSettings": {
+  "SmtpServer": "",
+  "SmtpPort": "587",
+  "FromEmail": "",
+  "ToEmail": "",
+  "Username": "",
+  "Password": ""
+}
+```
+
+Fuer lokale Tests kann eine eigene `appsettings.Development.json` angelegt werden. Diese Datei ist durch `.gitignore` ausgeschlossen und darf echte lokale Zugangsdaten enthalten.
+
+Optional kann die Vorlage kopiert werden:
+
+```bash
+copy appsettings.Development.example.json appsettings.Development.json
+```
+
+Unter macOS/Linux:
+
+```bash
+cp appsettings.Development.example.json appsettings.Development.json
+```
+
+## Hinweise
+
+Falls das Projekt in VS Code gedebuggt wird:
+
+- Projektroot oeffnen, also den Ordner mit der `.csproj`-Datei.
+- Nicht nur einen Unterordner oeffnen.
+- Falls Debugging nicht funktioniert, zuerst `dotnet run` im Terminal testen.
+
+## Wichtige Technologien
+
+- ASP.NET Core Blazor Web App
+- .NET 10
+- Entity Framework Core
+- SQLite
+- Bootstrap
+- HtmlAgilityPack
+- MailKit
+
+## Git-Hinweise
+
+Folgende lokale Dateien werden nicht eingecheckt:
+
+- `bin/`
+- `obj/`
+- `.vs/`
+- lokale `.vscode/`-Dateien, mit Ausnahme von `launch.json` und `tasks.json`
+- `appsettings.Development.json`
+- `*.db`
+- `*.db-shm`
+- `*.db-wal`
+
+`launch.json` und `tasks.json` bleiben im Repository, damit der VS-Code-Debug-Button nach dem Pull direkt funktioniert.
+
+Dadurch kann das Projekt frisch von GitHub gepullt oder als ZIP geladen und direkt mit `dotnet run` oder dem VS-Code-Debug-Button gestartet werden.

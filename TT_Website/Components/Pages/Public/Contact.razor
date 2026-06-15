@@ -1,28 +1,103 @@
 @page "/kontakt"
 
-<h1>Kontakt</h1>
+@using TT_Website.Services
 
-<p>
-    Du möchtest mehr über unseren Verein erfahren oder hast Fragen zum Training?
-    Dann kontaktiere uns gerne.
-</p>
+@inject SiteSettingsService SiteSettingsService
 
-<h3>Verein</h3>
-<p>
-    TSV 1883 Bogen Tischtennis
-</p>
+<EditablePublicPageHeader Slug="kontakt"
+                          Eyebrow="Kontakt"
+                          DefaultTitle="Kontakt"
+                          DefaultSummary="Fragen zum Training, Probetraining oder zur Mitgliedschaft beantworten wir unkompliziert."
+                          CssClass="contact-hero"
+                          ShowContent="true" />
 
-<h3>Adresse</h3>
-<p>
-    Die Vereinsadresse wird noch ergänzt.
-</p>
+<section class="contact-layout">
+    <article class="content-card contact-intro-card">
+        <p class="eyebrow">TSV 1883 Bogen Tischtennis</p>
+        <h2>Vorbeikommen, mitspielen, kennenlernen.</h2>
+        <p>
+            Schreib uns, wenn du beim Training reinschnuppern möchtest oder Informationen zum Verein brauchst.
+            Neue Spielerinnen und Spieler sind herzlich willkommen.
+        </p>
+        <div class="button-row">
+            <a class="btn btn-primary" href="/training">Trainingszeiten ansehen</a>
+            @if (HasContactEmail)
+            {
+                <a class="btn btn-outline-primary" href="@MailToHref">
+                    E-Mail schreiben
+                </a>
+            }
+        </div>
+    </article>
 
-<h3>E-Mail</h3>
-<p>
-    Die Kontaktadresse wird noch ergänzt.
-</p>
+    <div class="contact-card-grid">
+        <article class="content-card contact-card">
+            <span>Verein</span>
+            <strong>TSV 1883 Bogen Tischtennis</strong>
+            <p>Abteilung Tischtennis</p>
+        </article>
 
-<h3>Sporthalle</h3>
-<p>
-    Die Trainingshalle und Anfahrt werden noch ergänzt.
-</p>
+        <article class="content-card contact-card">
+            <span>Trainingsort</span>
+            <strong>Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen</strong>
+            <p>Regelmäßiges Jugend- und Erwachsenentraining.</p>
+        </article>
+
+        <article class="content-card contact-card">
+            <span>Kontakt</span>
+            <strong>Über den Verein</strong>
+            @if (!HasContactEmail)
+            {
+                <p>Schreib uns gerne bei Fragen zum Training, zur Mitgliedschaft oder zum Vereinsleben.</p>
+            }
+            else
+            {
+                <p>
+                    <a href="@MailToHref">@contactEmail</a>
+                </p>
+            }
+        </article>
+    </div>
+</section>
+
+@code {
+    private string contactEmail = "";
+    private bool HasContactEmail => IsValidEmail(contactEmail);
+
+    private string MailToHref =>
+        $"mailto:{contactEmail}?subject={Uri.EscapeDataString("Kontaktanfrage über die Website")}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        contactEmail = await SiteSettingsService.GetValueAsync(SiteSettingsService.MemberApplicationRecipientEmail) ?? "";
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Anfahrt</p>
+            <h2>Trainingshalle</h2>
+        </div>
+    </div>
+
+    <iframe class="map-embed"
+            src="https://www.google.com/maps?q=Herzog-Ludwig-Mittelschule%20Bogen&output=embed"
+            loading="lazy"
+            allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+</section>

@@ -16,6 +16,7 @@ public class DownloadService
     public async Task<List<DownloadDocument>> GetAllAsync()
     {
         return await _context.DownloadDocuments
+            .AsNoTracking()
             .OrderByDescending(x => x.UploadedAt)
             .ToListAsync();
     }

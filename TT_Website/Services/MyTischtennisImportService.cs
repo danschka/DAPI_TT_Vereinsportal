@@ -13,6 +13,10 @@ public record TeamImportData(
     string StatisticsDataJson,
     DateTime LastSyncedAt);
 
+public record RankingImportData(
+    List<List<string>> Rows,
+    DateTime LastSyncedAt);
+
 public class MyTischtennisImportService
 {
     private readonly HttpClient _httpClient;
@@ -51,6 +55,16 @@ public class MyTischtennisImportService
         var scheduleUrl = TryCreateOptionalUri(myTischtennisScheduleUrl, "myTischtennis-Spielplan-URL");
 
         return await ImportFromUrisAsync(url, statisticsUrl, scheduleUrl);
+    }
+
+    public async Task<RankingImportData> ImportRankingAsync(string rankingUrl)
+    {
+        var url = CreateRequiredUri(rankingUrl, "myTischtennis-Ranglisten-URL");
+        var doc = await LoadDocumentAsync(url);
+        var table = FindBestTable(doc, GetRankingTableScore);
+        var rows = NormalizeRankingRows(ReadTableRows(table));
+
+        return new RankingImportData(rows, DateTime.Now);
     }
 
     private async Task<TeamImportData> ImportFromUrisAsync(Uri url, Uri? statisticsUrl, Uri? scheduleUrl)
@@ -345,6 +359,175 @@ public class MyTischtennisImportService
         score += Math.Min(rowCount, 20);
 
         return score;
+    }
+
+    private static int GetRankingTableScore(HtmlNode table)
+    {
+        var text = CleanInlineText(table.InnerText);
+        var score = 0;
+
+        foreach (var keyword in new[] { "Position", "Rang", "Platz", "Nachname", "Vorname", "Spieler", "Name", "Punkte", "TTR" })
+        {
+            if (text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                score += 6;
+        }
+
+        if (score == 0)
+            return 0;
+
+        if (text.Contains("Mannschaft", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Heimmannschaft", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("Gastmannschaft", StringComparison.OrdinalIgnoreCase))
+        {
+            score -= 20;
+        }
+
+        var rowCount = table.SelectNodes(".//tr")?.Count ?? 0;
+        score += Math.Min(rowCount, 40);
+
+        return score;
+    }
+
+    private static List<List<string>> NormalizeRankingRows(List<List<string>> rows)
+    {
+        var result = new List<List<string>>
+        {
+            new() { "Position", "Nachname", "Vorname", "Punkte" }
+        };
+
+        if (rows.Count == 0)
+            return [];
+
+        var header = rows.FirstOrDefault(row => row.Any(cell => IsRankingHeaderCell(cell))) ?? [];
+        var dataRows = ReferenceEquals(header, rows.FirstOrDefault()) || header.Count > 0
+            ? rows.SkipWhile(row => !ReferenceEquals(row, header)).Skip(1)
+            : rows;
+
+        var positionIndex = FindHeaderIndex(header, "position", "rang", "platz");
+        var lastNameIndex = FindHeaderIndex(header, "nachname");
+        var firstNameIndex = FindHeaderIndex(header, "vorname");
+        var nameIndex = FindHeaderIndex(header, "spieler", "name");
+        var pointsIndex = FindHeaderIndex(header, "punkte", "ttr");
+        var hasGenderColumn = header.Any(cell =>
+            cell.Contains("geschlecht", StringComparison.OrdinalIgnoreCase) ||
+            cell.Equals("m/w", StringComparison.OrdinalIgnoreCase) ||
+            cell.Equals("mw", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var row in dataRows)
+        {
+            var normalizedRow = hasGenderColumn
+                ? row
+                : row.Where(cell => !IsGenderMarker(cell)).ToList();
+
+            var position = GetIndexedCell(normalizedRow, positionIndex);
+            var points = GetIndexedCell(normalizedRow, pointsIndex);
+            var lastName = GetIndexedCell(normalizedRow, lastNameIndex);
+            var firstName = GetIndexedCell(normalizedRow, firstNameIndex);
+
+            if (string.IsNullOrWhiteSpace(position))
+                position = normalizedRow.FirstOrDefault(cell => Regex.IsMatch(cell, @"^\d+\.?$")) ?? "";
+
+            if (string.IsNullOrWhiteSpace(points))
+                points = normalizedRow.LastOrDefault(cell => Regex.IsMatch(cell, @"\b\d{3,4}\b")) ?? "";
+
+            if (string.IsNullOrWhiteSpace(lastName) && string.IsNullOrWhiteSpace(firstName))
+            {
+                var fullName = GetIndexedCell(normalizedRow, nameIndex);
+
+                if (string.IsNullOrWhiteSpace(fullName))
+                {
+                    fullName = normalizedRow.FirstOrDefault(cell =>
+                        cell.Any(char.IsLetter) &&
+                        !cell.Contains("TSV", StringComparison.OrdinalIgnoreCase) &&
+                        !IsRankingHeaderCell(cell)) ?? "";
+                }
+
+                (lastName, firstName) = SplitPlayerName(fullName);
+            }
+
+            firstName = RemoveGenderPrefix(firstName);
+            lastName = RemoveGenderPrefix(lastName);
+            position = position.TrimEnd('.');
+            points = Regex.Match(points, @"\d{3,4}").Value;
+
+            if (string.IsNullOrWhiteSpace(position) ||
+                string.IsNullOrWhiteSpace(lastName) ||
+                string.IsNullOrWhiteSpace(points))
+            {
+                continue;
+            }
+
+            result.Add(new List<string>
+            {
+                position,
+                lastName,
+                firstName,
+                points
+            });
+        }
+
+        return result.Count == 1 ? [] : result;
+    }
+
+    private static int FindHeaderIndex(List<string> header, params string[] names)
+    {
+        for (var index = 0; index < header.Count; index++)
+        {
+            if (names.Any(name => header[index].Contains(name, StringComparison.OrdinalIgnoreCase)))
+                return index;
+        }
+
+        return -1;
+    }
+
+    private static string GetIndexedCell(List<string> row, int index)
+    {
+        return index >= 0 && index < row.Count ? row[index] : "";
+    }
+
+    private static bool IsRankingHeaderCell(string value)
+    {
+        return value.Contains("Position", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Rang", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Platz", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Nachname", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Vorname", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("Punkte", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("TTR", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (string LastName, string FirstName) SplitPlayerName(string value)
+    {
+        var name = RemoveGenderPrefix(CleanInlineText(value));
+
+        if (string.IsNullOrWhiteSpace(name))
+            return ("", "");
+
+        if (name.Contains(','))
+        {
+            var parts = name.Split(',', 2, StringSplitOptions.TrimEntries);
+            return (parts[0], parts.Length > 1 ? parts[1] : "");
+        }
+
+        var nameParts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (nameParts.Length == 1)
+            return (nameParts[0], "");
+
+        return (nameParts[^1], string.Join(" ", nameParts.Take(nameParts.Length - 1)));
+    }
+
+    private static string RemoveGenderPrefix(string value)
+    {
+        var cleanedValue = value.Trim();
+        cleanedValue = Regex.Replace(cleanedValue, @"^(?:m|w)\.?\s+", "", RegexOptions.IgnoreCase);
+        cleanedValue = Regex.Replace(cleanedValue, @"^[mw]\.?(?=\p{Lu})", "");
+        return IsGenderMarker(cleanedValue) ? "" : cleanedValue;
+    }
+
+    private static bool IsGenderMarker(string value)
+    {
+        return Regex.IsMatch(value.Trim(), @"^(?:m|w)\.?$", RegexOptions.IgnoreCase);
     }
 
     private static List<List<string>> ReadTableRows(HtmlNode? table)

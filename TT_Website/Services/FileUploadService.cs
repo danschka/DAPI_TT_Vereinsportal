@@ -15,14 +15,16 @@ public class FileUploadService
         ".jpg",
         ".jpeg",
         ".png",
-        ".webp"
+        ".webp",
+        ".gif"
     };
 
     private static readonly HashSet<string> AllowedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/jpeg",
         "image/png",
-        "image/webp"
+        "image/webp",
+        "image/gif"
     };
 
     private static readonly HashSet<string> AllowedDocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -108,14 +110,16 @@ public class FileUploadService
             ? AllowedImageExtensions.Contains(extension)
             : AllowedDocumentExtensions.Contains(extension);
 
-        var validContentType = kind == UploadFileKind.Image
+        var validContentType = string.IsNullOrWhiteSpace(file.ContentType) ||
+            file.ContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+            (kind == UploadFileKind.Image
             ? AllowedImageContentTypes.Contains(file.ContentType)
-            : AllowedDocumentContentTypes.Contains(file.ContentType);
+            : AllowedDocumentContentTypes.Contains(file.ContentType));
 
         if (!validExtension || !validContentType)
         {
             var allowed = kind == UploadFileKind.Image
-                ? "JPG, PNG oder WEBP"
+                ? "JPG, PNG, WEBP oder GIF"
                 : "PDF, Word, Excel oder TXT";
 
             throw new InvalidOperationException($"Dieser Dateityp ist nicht erlaubt. Erlaubt sind: {allowed}.");

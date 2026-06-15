@@ -8,85 +8,98 @@
 @inject NewsService NewsService
 @inject FileUploadService FileUploadService
 
-<h1>News verwalten</h1>
-
-<div>
-    <InputText @bind-Value="title" placeholder="Titel" />
-</div>
-
-<br />
-
-<div>
-    <InputTextArea @bind-Value="content" placeholder="Inhalt" />
-</div>
-
-<br />
-
-<InputFile OnChange="HandleFileSelected" />
-
-<br />
-<br />
-
-<label>
-    <InputCheckbox @bind-Value="isPublished" />
-    Veröffentlicht
-</label>
-
-<br />
-<br />
-
-<button type="button" @onclick="AddNews">
-    News speichern
-</button>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">News</p>
+        <h1>News verwalten</h1>
+        <p class="text-muted">Meldungen erstellen, veröffentlichen und bearbeiten.</p>
+    </div>
+</section>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <p>@message</p>
+    <div class="alert @messageClass">@message</div>
 }
 
-<hr />
+<section class="content-card form-card">
+    <h2>Neue News</h2>
 
-@if (newsPosts.Count == 0)
-{
-    <p>Keine News vorhanden.</p>
-}
-else
-{
-    @foreach (var post in newsPosts)
-    {
+    <label class="form-label">Titel</label>
+    <InputText class="form-control" @bind-Value="title" placeholder="Titel" />
+
+    <label class="form-label">Inhalt</label>
+    <InputTextArea class="form-control textarea-lg" @bind-Value="content" placeholder="Inhalt" />
+
+    <label class="form-label">Bild</label>
+    <InputFile class="form-control" OnChange="HandleFileSelected" />
+
+    <label class="form-check admin-check">
+        <InputCheckbox class="form-check-input" @bind-Value="isPublished" />
+        <span>Veröffentlicht</span>
+    </label>
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="AddNews">
+            News speichern
+        </button>
+    </div>
+</section>
+
+<section class="content-card">
+    <div class="section-heading">
         <div>
-            @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+            <h2>Vorhandene News</h2>
+            <span>@newsPosts.Count Meldung@(newsPosts.Count == 1 ? "" : "en")</span>
+        </div>
+    </div>
+
+    @if (newsPosts.Count == 0)
+    {
+        <p class="text-muted">Keine News vorhanden.</p>
+    }
+    else
+    {
+        <div class="admin-list">
+            @foreach (var post in newsPosts)
             {
-                <img src="@post.ImagePath" alt="@post.Title" style="max-width:200px;" />
+                <article class="admin-list-item">
+                    @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+                    {
+                        <img class="admin-list-image" src="@post.ImagePath" alt="@post.Title" />
+                    }
+
+                    <div class="admin-list-body">
+                        <div>
+                            <h3>@post.Title</h3>
+                            <p class="text-muted">@post.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                        </div>
+                        <p>@post.Content</p>
+                        <span class="badge @(post.IsPublished ? "bg-success" : "bg-secondary")">
+                            @(post.IsPublished ? "Veröffentlicht" : "Entwurf")
+                        </span>
+                    </div>
+
+                    <div class="button-row admin-list-actions">
+                        <a class="btn btn-outline-primary" href="@($"/admin/news/edit/{post.Id}")">
+                            Bearbeiten
+                        </a>
+                        <button class="btn btn-outline-secondary" type="button" @onclick="() => DeleteNews(post)">
+                            Löschen
+                        </button>
+                    </div>
+                </article>
             }
-
-            <h3>@post.Title</h3>
-            <p>@post.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
-            <p>@post.Content</p>
-            <p>Veröffentlicht: @post.IsPublished</p>
-
-            <a href="@($"/admin/news/edit/{post.Id}")">
-                Bearbeiten
-            </a>
-
-            &nbsp;
-
-            <button type="button" @onclick="() => DeleteNews(post)">
-                Löschen
-            </button>
-
-            <hr />
         </div>
     }
-}
+</section>
 
 @code {
-    private List<NewsPost> newsPosts = new();
-
+    private List<NewsPost> newsPosts = [];
     private string title = "";
     private string content = "";
     private bool isPublished = true;
     private string message = "";
+    private string messageClass = "alert-info";
     private IBrowserFile? selectedFile;
 
     protected override async Task OnInitializedAsync()
@@ -111,7 +124,7 @@ else
             if (string.IsNullOrWhiteSpace(title) ||
                 string.IsNullOrWhiteSpace(content))
             {
-                message = "Bitte Titel und Inhalt eingeben.";
+                SetMessage("Bitte Titel und Inhalt eingeben.", "alert-warning");
                 return;
             }
 
@@ -128,8 +141,8 @@ else
 
             var newsPost = new NewsPost
             {
-                Title = title,
-                Content = content,
+                Title = title.Trim(),
+                Content = content.Trim(),
                 ImagePath = imagePath,
                 IsPublished = isPublished,
                 CreatedAt = DateTime.Now
@@ -137,29 +150,31 @@ else
 
             await NewsService.AddAsync(newsPost);
 
-            message = "News wurde gespeichert.";
-
             title = "";
             content = "";
             isPublished = true;
             selectedFile = null;
+            SetMessage("News wurde gespeichert.", "alert-success");
 
             await LoadNews();
         }
         catch (Exception ex)
         {
-            message = ex.Message;
+            SetMessage(ex.Message, "alert-danger");
         }
     }
 
     private async Task DeleteNews(NewsPost post)
     {
         FileUploadService.DeleteIfExists(post.ImagePath);
-
         await NewsService.DeleteAsync(post.Id);
-
-        message = "News wurde gelöscht.";
-
+        SetMessage("News wurde gelöscht.", "alert-info");
         await LoadNews();
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
     }
 }

@@ -1,37 +1,35 @@
-﻿@page "/links"
+@page "/links"
 
-<h1>Links</h1>
+<EditablePublicPageHeader Slug="links"
+                          Eyebrow="Verein"
+                          DefaultTitle="Links"
+                          DefaultSummary="Social Media, Webshop und weitere wichtige Anlaufstellen."
+                          ShowContent="true" />
 
-<p>
-    Hier findest du unsere Social-Media-Kanäle und weitere wichtige Links.
-</p>
+<section class="cms-section-list">
+    <article class="content-card cms-text-card">
+        <p class="cms-text-card__question">Social Media</p>
+        <p>Unsere Kanäle findest du hier gesammelt.</p>
 
-<h3>Social Media</h3>
+        <div class="button-row">
+            <a class="btn btn-outline-primary" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer">
+                Instagram
+            </a>
+            <a class="btn btn-outline-primary" href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer">
+                Facebook
+            </a>
+            <a class="btn btn-outline-primary" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
+                YouTube
+            </a>
+        </div>
+    </article>
 
-<ul>
-    <li>
-        <a href="https://www.instagram.com/" target="_blank">
-            Instagram
+    <article class="content-card cms-text-card">
+        <p class="cms-text-card__question">Webshop</p>
+        <p>Vereinskleidung und Zubehör findest du in unserem Webshop.</p>
+
+        <a class="btn btn-primary" href="https://www.example.com" target="_blank" rel="noopener noreferrer">
+            Zum Webshop
         </a>
-    </li>
-    <li>
-        <a href="https://www.facebook.com/" target="_blank">
-            Facebook
-        </a>
-    </li>
-    <li>
-        <a href="https://www.youtube.com/" target="_blank">
-            YouTube
-        </a>
-    </li>
-</ul>
-
-<h3>Webshop</h3>
-
-<p>
-    Vereinskleidung und Zubehör findest du in unserem Webshop.
-</p>
-
-<a href="https://www.example.com" target="_blank">
-    Zum Webshop
-</a>
+    </article>
+</section>

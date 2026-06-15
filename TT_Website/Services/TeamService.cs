@@ -22,6 +22,7 @@ public class TeamService
     public async Task<List<Team>> GetAllAsync()
     {
         return await _context.Teams
+            .AsNoTracking()
             .Include(t => t.Rounds)
             .OrderBy(t => t.Category)
             .ThenBy(t => t.Name)
@@ -31,6 +32,7 @@ public class TeamService
     public async Task<List<Team>> GetActiveAsync()
     {
         return await _context.Teams
+            .AsNoTracking()
             .Include(t => t.Rounds)
             .Where(t => t.IsActive)
             .OrderBy(t => t.Category)
@@ -38,9 +40,45 @@ public class TeamService
             .ToListAsync();
     }
 
+    public async Task<List<Team>> GetActiveOverviewAsync()
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.Category)
+            .ThenBy(t => t.Name)
+            .Select(t => new Team
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Category = t.Category,
+                MyTischtennisLeagueUrl = t.MyTischtennisLeagueUrl,
+                MyTischtennisStatisticsUrl = t.MyTischtennisStatisticsUrl,
+                MyTischtennisScheduleUrl = t.MyTischtennisScheduleUrl,
+                IsActive = t.IsActive,
+                League = t.League,
+                Season = t.Season,
+                LastSyncedAt = t.LastSyncedAt,
+                Rounds = t.Rounds.Select(round => new TeamRound
+                {
+                    Id = round.Id,
+                    TeamId = round.TeamId,
+                    RoundName = round.RoundName,
+                    MyTischtennisLeagueUrl = round.MyTischtennisLeagueUrl,
+                    MyTischtennisStatisticsUrl = round.MyTischtennisStatisticsUrl,
+                    MyTischtennisScheduleUrl = round.MyTischtennisScheduleUrl,
+                    League = round.League,
+                    Season = round.Season,
+                    LastSyncedAt = round.LastSyncedAt
+                }).ToList()
+            })
+            .ToListAsync();
+    }
+
     public async Task<Team?> GetByIdAsync(int id)
     {
         return await _context.Teams
+            .AsNoTracking()
             .Include(t => t.Rounds)
             .FirstOrDefaultAsync(t => t.Id == id);
     }

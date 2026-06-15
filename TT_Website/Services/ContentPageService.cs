@@ -16,6 +16,7 @@ public class ContentPageService
     public async Task<List<ContentPage>> GetAllAsync()
     {
         return await _context.ContentPages
+            .AsNoTracking()
             .Include(x => x.Parent)
             .Include(x => x.GalleryGroups)
             .ThenInclude(x => x.GalleryGroup)
@@ -40,6 +41,7 @@ public class ContentPageService
     public async Task<ContentPage?> GetByIdAsync(int id)
     {
         return await _context.ContentPages
+            .AsNoTracking()
             .Include(x => x.GalleryGroups)
             .ThenInclude(x => x.GalleryGroup)
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -101,8 +103,10 @@ public class ContentPageService
         if (existing is null)
             return;
 
+        existing.Title = page.Title.Trim();
         existing.Summary = page.Summary?.Trim();
         existing.Content = page.Content?.Trim() ?? "";
+        existing.ExternalUrl = page.ExternalUrl?.Trim();
 
         if (existing.Slug == "vereinslokal")
         {

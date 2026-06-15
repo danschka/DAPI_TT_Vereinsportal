@@ -5,7 +5,10 @@
 
 @inject TeamService TeamService
 
-<h1 class="mb-4">Mannschaften</h1>
+<EditablePublicPageHeader Slug="mannschaftsuebersicht"
+                          Eyebrow="Mannschaften"
+                          DefaultTitle="Mannschaften"
+                          DefaultSummary="Unsere Mannschaften im aktuellen Spielbetrieb." />
 
 @if (!teams.Any())
 {
@@ -85,7 +88,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        teams = await TeamService.GetActiveAsync();
+        teams = await TeamService.GetActiveOverviewAsync();
     }
 
     private int GetCategoryOrder(string category)

@@ -1,0 +1,131 @@
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject ContentPageService ContentPageService
+
+@if (RenderHero)
+{
+    <section class="@HeroClass">
+        <p class="eyebrow">@Eyebrow</p>
+        <h1>@TitleText</h1>
+        @if (!string.IsNullOrWhiteSpace(SummaryText))
+        {
+            <p>@SummaryText</p>
+        }
+    </section>
+}
+
+@if (ShowContent && ContentSections.Any())
+{
+    <section class="cms-section-list">
+        @foreach (var section in ContentSections)
+        {
+            <article class="content-card cms-text-card">
+                @if (!string.IsNullOrWhiteSpace(section.Heading))
+                {
+                    <p class="cms-text-card__question">@section.Heading</p>
+                }
+                <p>@section.Text</p>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Slug { get; set; } = "";
+
+    [Parameter]
+    public string Eyebrow { get; set; } = "";
+
+    [Parameter]
+    public string DefaultTitle { get; set; } = "";
+
+    [Parameter]
+    public string? DefaultSummary { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = "";
+
+    [Parameter]
+    public bool ShowContent { get; set; }
+
+    [Parameter]
+    public bool RenderHero { get; set; } = true;
+
+    private ContentPage? page;
+
+    private string HeroClass => string.IsNullOrWhiteSpace(CssClass)
+        ? "page-hero compact"
+        : $"page-hero compact {CssClass}";
+
+    private string TitleText => string.IsNullOrWhiteSpace(page?.Title)
+        ? DefaultTitle
+        : page.Title;
+
+    private string? SummaryText => string.IsNullOrWhiteSpace(page?.Summary)
+        ? DefaultSummary
+        : page.Summary;
+
+    private IReadOnlyList<TextSection> ContentSections => GetContentSections(page?.Content).ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        page = string.IsNullOrWhiteSpace(Slug)
+            ? null
+            : await ContentPageService.GetBySlugAsync(Slug);
+    }
+
+    private static IEnumerable<TextSection> GetContentSections(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return [];
+
+        var lines = content
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        var sections = new List<TextSection>();
+        var textBuffer = new List<string>();
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var line = lines[index];
+
+            if (line.EndsWith('?') && index + 1 < lines.Count)
+            {
+                AddBufferedTextSection(sections, textBuffer);
+                sections.Add(new TextSection(line, lines[index + 1]));
+                index++;
+                continue;
+            }
+
+            var questionMarkIndex = line.IndexOf('?');
+            if (questionMarkIndex >= 0 && questionMarkIndex < line.Length - 1)
+            {
+                AddBufferedTextSection(sections, textBuffer);
+                sections.Add(new TextSection(
+                    line[..(questionMarkIndex + 1)].Trim(),
+                    line[(questionMarkIndex + 1)..].Trim()));
+                continue;
+            }
+
+            textBuffer.Add(line);
+        }
+
+        AddBufferedTextSection(sections, textBuffer);
+        return sections;
+    }
+
+    private static void AddBufferedTextSection(List<TextSection> sections, List<string> textBuffer)
+    {
+        if (textBuffer.Count == 0)
+            return;
+
+        sections.Add(new TextSection(null, string.Join("\n", textBuffer)));
+        textBuffer.Clear();
+    }
+
+    private sealed record TextSection(string? Heading, string Text);
+}

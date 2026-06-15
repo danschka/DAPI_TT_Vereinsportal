@@ -16,6 +16,7 @@ public class SponsorService
     public async Task<List<Sponsor>> GetAllAsync()
     {
         return await _context.Sponsors
+            .AsNoTracking()
             .OrderBy(x => x.Name)
             .ToListAsync();
     }
@@ -23,6 +24,7 @@ public class SponsorService
     public async Task<List<Sponsor>> GetActiveAsync()
     {
         return await _context.Sponsors
+            .AsNoTracking()
             .Where(x => x.IsActive)
             .OrderBy(x => x.Name)
             .ToListAsync();
@@ -36,7 +38,16 @@ public class SponsorService
 
     public async Task UpdateAsync(Sponsor sponsor)
     {
-        _context.Sponsors.Update(sponsor);
+        var existingSponsor = await _context.Sponsors.FindAsync(sponsor.Id);
+
+        if (existingSponsor is null)
+            return;
+
+        existingSponsor.Name = sponsor.Name;
+        existingSponsor.WebsiteUrl = sponsor.WebsiteUrl;
+        existingSponsor.LogoPath = sponsor.LogoPath;
+        existingSponsor.IsActive = sponsor.IsActive;
+
         await _context.SaveChangesAsync();
     }
 

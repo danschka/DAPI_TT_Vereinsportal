@@ -8,108 +8,124 @@
 @inject SponsorService SponsorService
 @inject FileUploadService FileUploadService
 
-<h1>Sponsoren verwalten</h1>
-
-<div>
-    <InputText @bind-Value="name" placeholder="Sponsorname" />
-</div>
-
-<br />
-
-<div>
-    <InputText @bind-Value="websiteUrl" placeholder="Website URL" />
-</div>
-
-<br />
-
-@if (editMode && !string.IsNullOrWhiteSpace(existingLogoPath))
-{
+<section class="admin-page-header">
     <div>
-        <label>Aktuelles Logo</label><br />
-        <img src="@existingLogoPath" alt="@name" style="max-width:150px;" />
+        <p class="eyebrow">Sponsoren</p>
+        <h1>Sponsoren verwalten</h1>
+        <p class="text-muted">Sponsoren, Logos und externe Links pflegen.</p>
     </div>
-
-    <br />
-
-    <label>
-        <InputCheckbox @bind-Value="removeLogo" />
-        Logo entfernen
-    </label>
-
-    <br />
-    <br />
-}
-
-<InputFile OnChange="HandleFileSelected" />
-
-<br />
-<br />
-
-<label>
-    <InputCheckbox @bind-Value="isActive" />
-    Aktiv anzeigen
-</label>
-
-<br />
-<br />
-
-<button type="button" @onclick="SaveSponsor">
-    @(editMode ? "Änderungen speichern" : "Sponsor hinzufügen")
-</button>
-
-@if (editMode)
-{
-    <button type="button" @onclick="CancelEdit">
-        Abbrechen
-    </button>
-}
+</section>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <p>@message</p>
+    <div class="alert @messageClass">@message</div>
 }
 
-<hr />
+<section class="content-card form-card">
+    <h2>@(editMode ? "Sponsor bearbeiten" : "Sponsor hinzufügen")</h2>
 
-@if (sponsors.Count == 0)
-{
-    <p>Keine Sponsoren vorhanden.</p>
-}
-else
-{
-    @foreach (var sponsor in sponsors)
-    {
+    <div class="form-row">
         <div>
-            @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+            <label class="form-label">Sponsorname</label>
+            <InputText class="form-control" @bind-Value="name" placeholder="Sponsorname" />
+        </div>
+        <div>
+            <label class="form-label">Website URL</label>
+            <InputText class="form-control" @bind-Value="websiteUrl" placeholder="Website URL" />
+        </div>
+    </div>
+
+    @if (editMode && !string.IsNullOrWhiteSpace(existingLogoPath))
+    {
+        <label class="form-label">Aktuelles Logo</label>
+        <img class="admin-preview-image" src="@existingLogoPath" alt="@name" />
+
+        <label class="form-check admin-check">
+            <InputCheckbox class="form-check-input" @bind-Value="removeLogo" />
+            <span>Logo entfernen</span>
+        </label>
+    }
+
+    <label class="form-label">Logo</label>
+    <InputFile class="form-control" OnChange="HandleFileSelected" />
+
+    <label class="form-check admin-check">
+        <InputCheckbox class="form-check-input" @bind-Value="isActive" />
+        <span>Aktiv anzeigen</span>
+    </label>
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="SaveSponsor">
+            @(editMode ? "Änderungen speichern" : "Sponsor hinzufügen")
+        </button>
+
+        @if (editMode)
+        {
+            <button class="btn btn-outline-secondary" type="button" @onclick="CancelEdit">
+                Abbrechen
+            </button>
+        }
+    </div>
+</section>
+
+<section class="content-card">
+    <div class="section-heading">
+        <div>
+            <h2>Vorhandene Sponsoren</h2>
+            <span>@sponsors.Count Sponsor@(sponsors.Count == 1 ? "" : "en")</span>
+        </div>
+    </div>
+
+    @if (sponsors.Count == 0)
+    {
+        <p class="text-muted">Keine Sponsoren vorhanden.</p>
+    }
+    else
+    {
+        <div class="sponsor-grid">
+            @foreach (var sponsor in sponsors)
             {
-                <img src="@sponsor.LogoPath" alt="@sponsor.Name" style="max-width:150px;" />
+                <article class="sponsor-card admin-sponsor-card">
+                    @if (!string.IsNullOrWhiteSpace(sponsor.LogoPath))
+                    {
+                        <img src="@sponsor.LogoPath" alt="@sponsor.Name" />
+                    }
+
+                    <h3>@sponsor.Name</h3>
+                    @if (!string.IsNullOrWhiteSpace(sponsor.WebsiteUrl))
+                    {
+                        <a href="@sponsor.WebsiteUrl" target="_blank" rel="noopener noreferrer">@sponsor.WebsiteUrl</a>
+                    }
+
+                    <p>
+                        <span class="badge @(sponsor.IsActive ? "bg-success" : "bg-secondary")">
+                            @(sponsor.IsActive ? "Aktiv" : "Inaktiv")
+                        </span>
+                    </p>
+
+                    <div class="button-row">
+                        <button class="btn btn-outline-primary" type="button" @onclick="() => StartEdit(sponsor)">
+                            Bearbeiten
+                        </button>
+
+                        <button class="btn btn-outline-secondary" type="button" @onclick="() => DeleteSponsor(sponsor)">
+                            Löschen
+                        </button>
+                    </div>
+                </article>
             }
-
-            <h4>@sponsor.Name</h4>
-            <p>@sponsor.WebsiteUrl</p>
-            <p>Aktiv: @sponsor.IsActive</p>
-
-            <button type="button" @onclick="() => StartEdit(sponsor)">
-                Bearbeiten
-            </button>
-
-            <button type="button" @onclick="() => DeleteSponsor(sponsor)">
-                Löschen
-            </button>
-
-            <hr />
         </div>
     }
-}
+</section>
 
 @code {
-    private List<Sponsor> sponsors = new();
-
+    private List<Sponsor> sponsors = [];
     private string name = "";
     private string? websiteUrl = "";
     private bool isActive = true;
     private IBrowserFile? selectedFile;
     private string message = "";
+    private string messageClass = "alert-info";
     private bool editMode;
     private int? editingSponsorId;
     private string? existingLogoPath;
@@ -136,7 +152,7 @@ else
         {
             if (string.IsNullOrWhiteSpace(name))
             {
-                message = "Bitte Sponsorname eingeben.";
+                SetMessage("Bitte Sponsorname eingeben.", "alert-warning");
                 return;
             }
 
@@ -161,27 +177,27 @@ else
                 var sponsor = new Sponsor
                 {
                     Id = editingSponsorId.Value,
-                    Name = name,
+                    Name = name.Trim(),
                     WebsiteUrl = NormalizeUrl(websiteUrl),
                     LogoPath = removeLogo ? null : logoPath ?? existingLogoPath,
                     IsActive = isActive
                 };
 
                 await SponsorService.UpdateAsync(sponsor);
-                message = "Sponsor wurde aktualisiert.";
+                SetMessage("Sponsor wurde aktualisiert.", "alert-success");
             }
             else
             {
                 var sponsor = new Sponsor
                 {
-                    Name = name,
+                    Name = name.Trim(),
                     WebsiteUrl = NormalizeUrl(websiteUrl),
                     LogoPath = logoPath,
                     IsActive = isActive
                 };
 
                 await SponsorService.AddAsync(sponsor);
-                message = "Sponsor wurde gespeichert.";
+                SetMessage("Sponsor wurde gespeichert.", "alert-success");
             }
 
             ResetForm();
@@ -189,17 +205,15 @@ else
         }
         catch (Exception ex)
         {
-            message = ex.Message;
+            SetMessage(ex.Message, "alert-danger");
         }
     }
 
     private async Task DeleteSponsor(Sponsor sponsor)
     {
         FileUploadService.DeleteIfExists(sponsor.LogoPath);
-
         await SponsorService.DeleteAsync(sponsor.Id);
-
-        message = "Sponsor wurde gelöscht.";
+        SetMessage("Sponsor wurde gelöscht.", "alert-info");
         await LoadSponsors();
     }
 
@@ -213,13 +227,13 @@ else
         selectedFile = null;
         removeLogo = false;
         editMode = true;
-        message = $"Bearbeite '{sponsor.Name}'.";
+        SetMessage($"Bearbeite '{sponsor.Name}'.", "alert-info");
     }
 
     private void CancelEdit()
     {
         ResetForm();
-        message = "Bearbeitung abgebrochen.";
+        SetMessage("Bearbeitung abgebrochen.", "alert-info");
     }
 
     private void ResetForm()
@@ -234,7 +248,13 @@ else
         removeLogo = false;
     }
 
-    private string? NormalizeUrl(string? url)
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
+    }
+
+    private static string? NormalizeUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return null;

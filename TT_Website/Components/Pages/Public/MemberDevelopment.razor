@@ -1,0 +1,192 @@
+@page "/mitgliederentwicklung"
+
+@using System.Globalization
+@using TT_Website.Services
+
+@inject SiteSettingsService SiteSettingsService
+
+<EditablePublicPageHeader Slug="mitgliederentwicklung"
+                          Eyebrow="Mitgliedschaft"
+                          DefaultTitle="Mitgliederentwicklung"
+                          DefaultSummary="Das Diagramm zeigt, wie sich die Mitgliederzahlen des Vereins seit der Verselbständigung entwickelt haben."
+                          ShowContent="true" />
+
+<section class="content-card member-chart-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">2014 bis heute</p>
+            <h2>Mitglieder im Verlauf</h2>
+        </div>
+        @if (entries.Count > 0)
+        {
+            <span>@entries.Last().Value Mitglieder am @entries.Last().Date.ToString("dd.MM.yyyy")</span>
+        }
+    </div>
+
+    @if (entries.Count == 0)
+    {
+        <p class="text-muted">Für die Mitgliederentwicklung sind noch keine Werte verfügbar.</p>
+    }
+    else
+    {
+        <div class="member-line-chart" aria-label="Liniendiagramm der Mitgliederentwicklung">
+            <svg viewBox="0 0 1160 360" role="img" preserveAspectRatio="none">
+                <title>Mitgliederentwicklung von 2014 bis heute</title>
+
+                @foreach (var y in GridYValues)
+                {
+                    <line class="member-line-chart__grid" x1="40" y1="@y" x2="1080" y2="@y" />
+                }
+
+                <line class="member-line-chart__axis" x1="40" y1="300" x2="1080" y2="300" />
+                <polyline class="member-line-chart__line" points="@LinePoints" />
+
+                @foreach (var point in chartPoints)
+                {
+                    <g class="member-line-chart__point-group"
+                       tabindex="0"
+                       aria-label="@point.AccessibleLabel">
+                        <circle class="member-line-chart__hit-area"
+                                cx="@Format(point.X)"
+                                cy="@Format(point.Y)"
+                                r="15" />
+                        <circle class="member-line-chart__point"
+                                cx="@Format(point.X)"
+                                cy="@Format(point.Y)"
+                                r="5.5">
+                            <title>@point.AccessibleLabel</title>
+                        </circle>
+                        <g class="member-line-chart__tooltip"
+                           transform="translate(@Format(point.X) @Format(point.Y))">
+                            <rect x="-68"
+                                  y="@GetTooltipBoxY(point)"
+                                  width="136"
+                                  height="46"
+                                  rx="7" />
+                            <text x="0"
+                                  y="@GetTooltipDateY(point)"
+                                  text-anchor="middle">@point.DateLabel</text>
+                            <text x="0"
+                                  y="@GetTooltipValueY(point)"
+                                  text-anchor="middle">@point.ValueLabel</text>
+                        </g>
+                    </g>
+                }
+
+                @foreach (var label in xLabels)
+                {
+                    @GetLabelMarkup(label)
+                }
+            </svg>
+
+            <div class="member-line-chart__legend">
+                <span></span>
+                Mitglieder
+            </div>
+        </div>
+
+        <p class="member-chart-note">
+            Die Punkte markieren die gespeicherten Stände. Beim Überfahren eines Punktes werden Datum und Mitgliederzahl angezeigt.
+        </p>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo GermanCulture = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly double[] GridYValues = [40, 95, 150, 205, 260, 300];
+
+    private List<MemberDevelopmentEntry> entries = [];
+    private List<ChartPoint> chartPoints = [];
+    private List<XAxisLabel> xLabels = [];
+    private string LinePoints => string.Join(" ", chartPoints.Select(point => $"{Format(point.X)},{Format(point.Y)}"));
+
+    protected override async Task OnInitializedAsync()
+    {
+        entries = (await SiteSettingsService.GetMemberDevelopmentAsync())
+            .OrderBy(x => x.Date)
+            .ToList();
+
+        BuildChart();
+    }
+
+    private void BuildChart()
+    {
+        if (entries.Count == 0)
+            return;
+
+        var minDate = entries.Min(x => x.Date);
+        var maxDate = entries.Max(x => x.Date);
+        var totalDays = Math.Max(1, (maxDate - minDate).TotalDays);
+        var maxValue = Math.Max(1, entries.Max(x => x.Value));
+
+        chartPoints = entries
+            .Select(entry =>
+            {
+                var x = 40 + ((entry.Date - minDate).TotalDays / totalDays * 1040);
+                var y = 300 - (entry.Value / (double)maxValue * 260);
+                return new ChartPoint(
+                    x,
+                    y,
+                    entry.Date.ToString("dd.MM.yyyy", GermanCulture),
+                    $"{entry.Value} Mitglieder",
+                    $"{entry.Date.ToString("dd.MM.yyyy", GermanCulture)}: {entry.Value} Mitglieder");
+            })
+            .ToList();
+
+        xLabels = entries
+            .Select(entry =>
+            {
+                var x = 40 + ((entry.Date - minDate).TotalDays / totalDays * 1040);
+                var top = entry.Date.Month == 1
+                    ? entry.Date.ToString("yyyy", GermanCulture)
+                    : entry.Date.ToString("MMM", GermanCulture);
+                var bottom = entry.Date.Month == 1 ? "" : entry.Date.ToString("yyyy", GermanCulture);
+                return new XAxisLabel(x, top, bottom);
+            })
+            .ToList();
+    }
+
+    private static string Format(double value)
+    {
+        return value.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private static MarkupString GetLabelMarkup(XAxisLabel label)
+    {
+        var x = Format(label.X);
+        var top = System.Net.WebUtility.HtmlEncode(label.Top);
+        var bottom = System.Net.WebUtility.HtmlEncode(label.Bottom);
+
+        if (string.IsNullOrWhiteSpace(label.Bottom))
+            return new MarkupString($"""<text class="member-line-chart__label" x="{x}" y="324" text-anchor="middle">{top}</text>""");
+
+        return new MarkupString($"""
+            <text class="member-line-chart__label" x="{x}" y="324" text-anchor="middle">{top}</text>
+            <text class="member-line-chart__label" x="{x}" y="344" text-anchor="middle">{bottom}</text>
+            """);
+    }
+
+    private static int GetTooltipBoxY(ChartPoint point)
+    {
+        return point.Y < 85 ? 14 : -60;
+    }
+
+    private static int GetTooltipDateY(ChartPoint point)
+    {
+        return GetTooltipBoxY(point) + 18;
+    }
+
+    private static int GetTooltipValueY(ChartPoint point)
+    {
+        return GetTooltipBoxY(point) + 36;
+    }
+
+    private sealed record ChartPoint(
+        double X,
+        double Y,
+        string DateLabel,
+        string ValueLabel,
+        string AccessibleLabel);
+
+    private sealed record XAxisLabel(double X, string Top, string Bottom);
+}

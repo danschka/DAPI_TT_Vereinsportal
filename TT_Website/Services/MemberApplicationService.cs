@@ -16,6 +16,7 @@ public class MemberApplicationService
     public async Task<List<MembershipApplication>> GetAllAsync()
     {
         return await _context.MemberApplications
+            .AsNoTracking()
             .OrderByDescending(x => x.SubmittedAt)
             .ToListAsync();
     }

@@ -1,12 +1,56 @@
-﻿@page "/training"
+@page "/training"
 
-<h1>Training</h1>
+<EditablePublicPageHeader Slug="training"
+                          Eyebrow="Training"
+                          DefaultTitle="Trainingszeiten"
+                          DefaultSummary="Jugend, Erwachsene und freies Training finden regelmäßig in der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen statt."
+                          CssClass="training-hero"
+                          ShowContent="true" />
 
-<h3>Jugendtraining</h3>
-<p>Montag und Mittwoch, 17:00 – 18:30 Uhr</p>
+<section class="training-grid">
+    <article class="content-card training-card">
+        <p class="training-card__label">Nachwuchs</p>
+        <h2>Jugendtraining</h2>
+        <p class="training-card__time">Dienstag und Freitag, ab 17:30 Uhr</p>
+        <p class="text-muted">
+            Spielerischer Einstieg, Technik, Koordination und gemeinsames Training für Kinder und Jugendliche.
+        </p>
+    </article>
 
-<h3>Erwachsenentraining</h3>
-<p>Montag und Mittwoch, 19:00 – 21:30 Uhr</p>
+    <article class="content-card training-card">
+        <p class="training-card__label">Erwachsene</p>
+        <h2>Erwachsenentraining</h2>
+        <p class="training-card__time">Dienstag und Freitag, ab 19:00 Uhr</p>
+        <p class="text-muted">
+            Training für Mannschaftsspielerinnen, Mannschaftsspieler und alle, die regelmäßig am Tisch stehen möchten.
+        </p>
+    </article>
 
-<h3>Freies Training</h3>
-<p>Freitag, 18:00 – 21:00 Uhr</p>
+    <article class="content-card training-card">
+        <p class="training-card__label">Offen</p>
+        <h2>Schnuppertraining</h2>
+        <p class="training-card__time">Nach Absprache zu den Trainingszeiten</p>
+        <p class="text-muted">
+            Interessierte können in Sportkleidung vorbeikommen. Tischtennisschläger sind leihweise erhältlich.
+        </p>
+    </article>
+</section>
+
+<section class="content-card training-location">
+    <div>
+        <p class="eyebrow">Trainingsort</p>
+        <h2>Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen</h2>
+        <p class="text-muted">
+            In der Halle stehen 10 blaue Tischtennisplatten zur Verfügung. Neue Spielerinnen und Spieler sind willkommen.
+        </p>
+    </div>
+</section>
+
+<section class="content-card">
+    <iframe class="map-embed training-map"
+            src="https://www.google.com/maps?q=Herzog-Ludwig-Mittelschule%20Bogen&output=embed"
+            loading="lazy"
+            allowfullscreen
+            referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+</section>

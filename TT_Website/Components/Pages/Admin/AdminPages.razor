@@ -30,14 +30,23 @@
         @if (currentPage.Id > 0)
         {
             <div class="form-text mb-3">
-                @currentPage.Title
+                @GetPublicRoute(currentPage)
             </div>
+
+            <label class="form-label">Seitentitel</label>
+            <InputText class="form-control" @bind-Value="currentPage.Title" />
 
             <label class="form-label">Kurztext</label>
             <InputTextArea class="form-control" @bind-Value="currentPage.Summary" />
 
             <label class="form-label">Inhalt</label>
             <InputTextArea class="form-control textarea-lg" @bind-Value="currentPage.Content" />
+
+            <label class="form-label">Externer Link</label>
+            <InputText class="form-control" @bind-Value="currentPage.ExternalUrl" placeholder="https://..." />
+            <div class="form-text mb-3">
+                Optional. Wenn hier ein Link steht, öffnet der Menüpunkt direkt diese externe Seite.
+            </div>
 
             @if (currentPage.Slug == "vereinslokal")
             {
@@ -173,6 +182,7 @@
             Slug = page.Slug,
             Summary = page.Summary,
             Content = page.Content,
+            ExternalUrl = page.ExternalUrl,
             ShowMap = page.ShowMap,
             MapAddress = page.MapAddress,
             MapEmbedUrl = page.MapEmbedUrl
@@ -208,5 +218,28 @@
     private static string GetPageLabel(ContentPage page)
     {
         return page.Parent is null ? page.Title : $"{page.Parent.Title} / {page.Title}";
+    }
+
+    private static string GetPublicRoute(ContentPage page)
+    {
+        return page.Slug switch
+        {
+            "startseite" => "/",
+            "dokumente" => "/downloads",
+            "aufnahmeerklaerung" => "/mitglied-werden",
+            "mannschaftsuebersicht" => "/mannschaften",
+            "mannschaften-cms" => "/mannschaften",
+            "training" => "/training",
+            "news" => "/news",
+            "kontakt" => "/kontakt",
+            "sponsoren" => "/sponsors",
+            "galerie" => "/gallery",
+            "links" => "/links",
+            "webshop" => page.ExternalUrl ?? "https://de.butterfly.tt/",
+            "weihnachtsmarkt" => "/weihnachtsmarkt",
+            "impressum" => "/impressum",
+            "datenschutz" => "/datenschutz",
+            _ => $"/seite/{page.Slug}"
+        };
     }
 }

@@ -1,0 +1,181 @@
+@page "/stammdatenaenderung"
+@rendermode InteractiveServer
+
+@using System.Net.Mail
+@using TT_Website.Services
+
+@inject EmailService EmailService
+
+<section class="page-hero compact">
+    <p class="eyebrow">Mitgliedschaft</p>
+    <h1>Stammdatenänderung</h1>
+    <p>
+        Teile uns Änderungen an Adresse, Telefonnummer, E-Mail-Adresse oder Zahlungsdaten direkt online mit.
+    </p>
+</section>
+
+<EditablePublicPageHeader Slug="stammdatenaenderung"
+                          Eyebrow="Mitgliedschaft"
+                          DefaultTitle="Änderung"
+                          RenderHero="false"
+                          ShowContent="true" />
+
+<section class="content-card form-card">
+    <p class="text-muted">
+        Bitte fülle die geänderten Daten möglichst vollständig aus. Die Angaben werden automatisch per E-Mail an den Verein gesendet.
+    </p>
+
+    <div class="form-row">
+        <div>
+            <label class="form-label">Anrede*</label>
+            <InputSelect class="form-select" @bind-Value="form.Salutation">
+                <option value="">Bitte wählen</option>
+                <option value="Herr">Herr</option>
+                <option value="Frau">Frau</option>
+                <option value="Divers">Divers</option>
+            </InputSelect>
+        </div>
+        <div>
+            <label class="form-label">E-Mail*</label>
+            <InputText class="form-control" @bind-Value="form.Email" />
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label class="form-label">Vorname*</label>
+            <InputText class="form-control" @bind-Value="form.FirstName" />
+        </div>
+        <div>
+            <label class="form-label">Nachname*</label>
+            <InputText class="form-control" @bind-Value="form.LastName" />
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label class="form-label">Telefon</label>
+            <InputText class="form-control" @bind-Value="form.Phone" />
+        </div>
+        <div>
+            <label class="form-label">Neue Adresse</label>
+            <InputText class="form-control" @bind-Value="form.Address" />
+        </div>
+    </div>
+
+    <label class="form-label">Änderung</label>
+    <InputTextArea class="form-control" @bind-Value="form.ChangeDetails" />
+
+    <label class="form-label">Mitteilung*</label>
+    <InputTextArea class="form-control textarea-lg" @bind-Value="form.Message" />
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="SubmitAsync">Änderung absenden</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert @statusClass">@statusMessage</div>
+    }
+</section>
+
+@code {
+    private MasterDataChangeForm form = new();
+    private string statusMessage = "";
+    private string statusClass = "alert-info";
+
+    private async Task SubmitAsync()
+    {
+        if (!Validate())
+            return;
+
+        TrimForm();
+
+        try
+        {
+            await EmailService.SendMasterDataChangeEmailAsync(
+                form.Salutation,
+                form.FirstName,
+                form.LastName,
+                form.Email,
+                form.Phone,
+                form.Address,
+                form.ChangeDetails,
+                form.Message);
+
+            statusMessage = "Deine Stammdatenänderung wurde erfolgreich per E-Mail versendet.";
+            statusClass = "alert-success";
+            form = new MasterDataChangeForm();
+        }
+        catch (InvalidOperationException ex)
+        {
+            statusMessage = ex.Message;
+            statusClass = "alert-warning";
+        }
+        catch
+        {
+            statusMessage = "Die Angaben konnten aktuell nicht per E-Mail versendet werden. Bitte versuche es später erneut oder kontaktiere den Verein direkt.";
+            statusClass = "alert-warning";
+        }
+    }
+
+    private bool Validate()
+    {
+        if (string.IsNullOrWhiteSpace(form.Salutation) ||
+            string.IsNullOrWhiteSpace(form.FirstName) ||
+            string.IsNullOrWhiteSpace(form.LastName) ||
+            string.IsNullOrWhiteSpace(form.Email) ||
+            string.IsNullOrWhiteSpace(form.Message))
+        {
+            statusMessage = "Bitte fülle alle Pflichtfelder aus.";
+            statusClass = "alert-warning";
+            return false;
+        }
+
+        if (!IsValidEmail(form.Email))
+        {
+            statusMessage = "Bitte gib eine gültige E-Mail-Adresse ein.";
+            statusClass = "alert-warning";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void TrimForm()
+    {
+        form.Salutation = form.Salutation.Trim();
+        form.FirstName = form.FirstName.Trim();
+        form.LastName = form.LastName.Trim();
+        form.Email = form.Email.Trim();
+        form.Phone = form.Phone.Trim();
+        form.Address = form.Address.Trim();
+        form.ChangeDetails = form.ChangeDetails.Trim();
+        form.Message = form.Message.Trim();
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            _ = new MailAddress(email);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private sealed class MasterDataChangeForm
+    {
+        public string Salutation { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string ChangeDetails { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+}

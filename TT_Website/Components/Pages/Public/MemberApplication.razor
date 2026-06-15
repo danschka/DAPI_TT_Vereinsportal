@@ -14,6 +14,12 @@
     <p>Schick uns deine Daten. Der Verein meldet sich anschließend bei dir.</p>
 </section>
 
+<EditablePublicPageHeader Slug="aufnahmeerklaerung"
+                          Eyebrow="Mitgliedschaft"
+                          DefaultTitle="Mitglied werden"
+                          RenderHero="false"
+                          ShowContent="true" />
+
 <section class="content-card form-card">
     <div class="form-row">
         <div>
@@ -50,7 +56,10 @@
 
     <label class="form-check">
         <InputCheckbox @bind-Value="application.PrivacyPolicyAccepted" />
-        Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zur Bearbeitung des Mitgliedsantrags zu.
+        <span>
+            Ich habe die <a href="/datenschutz" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>
+            gelesen und stimme der Verarbeitung meiner Daten zur Bearbeitung des Mitgliedsantrags zu.
+        </span>
     </label>
 
     <button class="btn btn-primary" type="button" @onclick="SubmitApplication">Antrag absenden</button>
@@ -92,6 +101,10 @@
                 application.Address);
 
             SetMessage("Dein Antrag wurde erfolgreich gespeichert und per E-Mail versendet.", "alert-success");
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetMessage($"Dein Antrag wurde gespeichert. {ex.Message}", "alert-warning");
         }
         catch
         {

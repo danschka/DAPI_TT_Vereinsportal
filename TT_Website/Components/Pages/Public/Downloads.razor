@@ -1,43 +1,60 @@
-﻿@page "/downloads"
+@page "/downloads"
+@page "/dokumente"
 
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject DownloadService DownloadService
 
-<h1>Downloads</h1>
+<EditablePublicPageHeader Slug="dokumente"
+                          Eyebrow="Dokumente"
+                          DefaultTitle="Downloads"
+                          DefaultSummary="Hier findest du alle öffentlich bereitgestellten Vereinsdokumente zum Ansehen und Herunterladen."
+                          ShowContent="true" />
 
 @if (documents.Count == 0)
 {
-    <p>Keine Dokumente vorhanden.</p>
+    <section class="content-card empty-state">
+        <h2>Noch keine Dokumente vorhanden</h2>
+        <p class="text-muted">
+            Sobald Dokumente bereitgestellt wurden, erscheinen sie automatisch auf dieser Seite.
+        </p>
+    </section>
 }
 else
 {
+    <div class="section-heading">
+        <div>
+            <h2>Bereitgestellte Dokumente</h2>
+            <span>@documents.Count Dokument@(documents.Count == 1 ? "" : "e") verfügbar</span>
+        </div>
+    </div>
+
     <div class="download-list">
         @foreach (var document in documents)
         {
             <div class="download-card">
+                <div>
+                    <p class="download-card__type">PDF / Dokument</p>
+                    <h3>@document.Title</h3>
+                    <p class="text-muted">
+                        Hochgeladen am @document.UploadedAt.ToString("dd.MM.yyyy")
+                    </p>
+                </div>
 
-                <h4>@document.Title</h4>
-
-                <p>
-                    Hochgeladen:
-                    @document.UploadedAt.ToString("dd.MM.yyyy")
-                </p>
-
-                <a href="@document.FilePath"
-                   target="_blank">
+                <a class="btn btn-primary"
+                   href="@document.FilePath"
+                   target="_blank"
+                   rel="noopener noreferrer">
                     Dokument öffnen
                 </a>
-
             </div>
         }
     </div>
 }
 
 @code {
-
-    private List<DownloadDocument> documents = new();
+    private List<DownloadDocument> documents = [];
 
     protected override async Task OnInitializedAsync()
     {

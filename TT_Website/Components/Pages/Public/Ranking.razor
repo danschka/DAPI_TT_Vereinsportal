@@ -1,0 +1,86 @@
+@page "/vereinsrangliste"
+@rendermode InteractiveServer
+
+@using TT_Website.Services
+
+@inject SiteSettingsService SiteSettingsService
+@inject MyTischtennisImportService MyTischtennisImportService
+
+<EditablePublicPageHeader Slug="vereinsrangliste"
+                          Eyebrow="Mannschaften"
+                          DefaultTitle="Vereinsrangliste"
+                          DefaultSummary="Die Rangliste wird automatisch aus myTischtennis geladen und hier als Tabelle angezeigt."
+                          ShowContent="true" />
+
+@if (isLoading)
+{
+    <div class="alert alert-info">Vereinsrangliste wird von myTischtennis geladen.</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert @statusClass">@statusMessage</div>
+}
+
+<section class="content-card ranking-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">myTischtennis</p>
+            <h2>Aktuelle Vereinsrangliste</h2>
+        </div>
+        @if (lastSyncedAt is not null)
+        {
+            <span>@PlayerCount Einträge, Stand @lastSyncedAt.Value.ToString("dd.MM.yyyy HH:mm")</span>
+        }
+    </div>
+
+    <DataTableCard Title=""
+                   EmptyMessage="Die Vereinsrangliste konnte aktuell nicht geladen werden."
+                   Rows="rankingRows" />
+</section>
+
+@code {
+    private List<List<string>> rankingRows = [];
+    private DateTime? lastSyncedAt;
+    private bool isLoading;
+    private string statusMessage = "";
+    private string statusClass = "alert-info";
+    private int PlayerCount => rankingRows.Count > 0 ? rankingRows.Count - 1 : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        var rankingUrl = await SiteSettingsService.GetValueAsync(SiteSettingsService.RankingUrl) ?? "";
+
+        if (string.IsNullOrWhiteSpace(rankingUrl))
+        {
+            statusClass = "alert-warning";
+            statusMessage = "Der myTischtennis-Link zur Vereinsrangliste ist noch nicht hinterlegt.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var importData = await MyTischtennisImportService.ImportRankingAsync(rankingUrl);
+            rankingRows = importData.Rows;
+            lastSyncedAt = importData.LastSyncedAt;
+
+            if (rankingRows.Count == 0)
+            {
+                statusClass = "alert-warning";
+                statusMessage = "myTischtennis wurde erreicht, aber es konnte keine passende Ranglisten-Tabelle erkannt werden.";
+            }
+        }
+        catch (Exception ex)
+        {
+            statusClass = "alert-warning";
+            statusMessage = $"Die Vereinsrangliste konnte aktuell nicht geladen werden. {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

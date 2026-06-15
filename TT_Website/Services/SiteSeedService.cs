@@ -18,6 +18,7 @@ public class SiteSeedService
         await SeedPagesAsync();
         await SeedTeamsAsync();
         await SeedSettingsAsync(configuration);
+        await SeedSponsorsAsync();
         await SeedSampleGalleryGroupsAsync();
     }
 
@@ -56,9 +57,19 @@ public class SiteSeedService
             ("Mannschaften", "mannschaften-cms", null, 70, null),
             ("Mannschaftsübersicht", "mannschaftsuebersicht", "mannschaften-cms", 5, null),
             ("Vereinsrangliste", "vereinsrangliste", "mannschaften-cms", 10, null),
-            ("Statistik", "statistik", "mannschaften-cms", 20, null),
             ("myTischtennis", "mytischtennis", "mannschaften-cms", 30, "https://www.mytischtennis.de/"),
-            ("Click-TT", "click-tt", "mannschaften-cms", 40, "https://www.bttv.de/click-tt")
+            ("Click-TT", "click-tt", "mannschaften-cms", 40, "https://www.bttv.de/click-tt"),
+            ("Dokumente", "dokumente", null, 80, null),
+            ("Training", "training", null, 90, null),
+            ("News", "news", null, 100, null),
+            ("Kontakt", "kontakt", null, 110, null),
+            ("Sponsoren", "sponsoren", null, 120, null),
+            ("Galerie", "galerie", null, 130, null),
+            ("Links", "links", null, 140, null),
+            ("Webshop", "webshop", null, 145, "https://de.butterfly.tt/"),
+            ("Weihnachtsmarkt", "weihnachtsmarkt", null, 150, null),
+            ("Impressum", "impressum", null, 160, null),
+            ("Datenschutzerklärung", "datenschutz", null, 170, null)
         };
 
         var validSlugs = pages.Select(x => x.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -83,6 +94,29 @@ public class SiteSeedService
         {
             var parent = await _context.ContentPages.FirstAsync(x => x.Slug == seed.ParentSlug);
             await EnsurePageAsync(seed.Title, seed.Slug, parent.Id, seed.Sort, seed.ExternalUrl);
+        }
+
+        var hiddenNavigationSlugs = new[]
+        {
+            "training",
+            "news",
+            "kontakt",
+            "sponsoren",
+            "galerie",
+            "links",
+            "weihnachtsmarkt",
+            "impressum",
+            "datenschutz"
+        };
+
+        var hiddenNavigationPages = await _context.ContentPages
+            .Where(x => hiddenNavigationSlugs.Contains(x.Slug))
+            .ToListAsync();
+
+        foreach (var page in hiddenNavigationPages)
+        {
+            page.ShowInNavigation = false;
+            page.IsActive = true;
         }
 
         await _context.SaveChangesAsync();
@@ -212,21 +246,41 @@ public class SiteSeedService
 
         if (existing is not null)
         {
+            var seedContent = GetSeedContent(slug);
+
             existing.Title = title;
             existing.ParentId = parentId;
             existing.SortOrder = sortOrder;
             existing.ShowInNavigation = true;
             existing.IsActive = true;
-            existing.ExternalUrl = externalUrl;
+            if (string.IsNullOrWhiteSpace(existing.ExternalUrl))
+                existing.ExternalUrl = externalUrl;
+
+            if (ShouldReplacePlaceholder(existing.Content) && seedContent is not null)
+                existing.Content = seedContent.Value.Content;
+
+            if (ShouldReplaceSummary(existing.Summary))
+                existing.Summary = seedContent?.Summary;
+
+            if (IsSpecialPublicPage(slug) && seedContent is not null)
+            {
+                if (ContainsMojibake(existing.Content))
+                    existing.Content = seedContent.Value.Content;
+
+                if (ContainsMojibake(existing.Summary))
+                    existing.Summary = seedContent.Value.Summary;
+            }
 
             if (slug == "vereinslokal")
             {
                 existing.ShowMap = true;
-                existing.MapAddress ??= "Bogen, Deutschland";
+                existing.MapAddress ??= "Niedermenach 3, 94327 Bogen";
             }
 
             return;
         }
+
+        var newSeedContent = GetSeedContent(slug);
 
         _context.ContentPages.Add(new ContentPage
         {
@@ -238,23 +292,301 @@ public class SiteSeedService
             IsActive = true,
             ExternalUrl = externalUrl,
             ShowMap = slug == "vereinslokal",
-            MapAddress = slug == "vereinslokal" ? "Bogen, Deutschland" : null,
-            Content = $"Hier kann später der Inhalt für \"{title}\" gepflegt werden.",
-            Summary = "Text und Bilder können im Adminbereich bearbeitet werden."
+            MapAddress = slug == "vereinslokal" ? "Niedermenach 3, 94327 Bogen" : null,
+            Content = newSeedContent?.Content ?? "",
+            Summary = newSeedContent?.Summary
         });
+    }
+
+    private static bool ShouldReplacePlaceholder(string? content)
+    {
+        return string.IsNullOrWhiteSpace(content) ||
+            content.StartsWith("Hier kann später der Inhalt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldReplaceSummary(string? summary)
+    {
+        return string.IsNullOrWhiteSpace(summary) ||
+            summary.Contains("Adminbereich bearbeitet", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsMojibake(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) &&
+            (value.Contains('Ã') || value.Contains('Â'));
+    }
+
+    private static bool IsSpecialPublicPage(string slug)
+    {
+        return slug is
+            "training" or
+            "news" or
+            "kontakt" or
+            "sponsoren" or
+            "galerie" or
+            "links" or
+            "webshop" or
+            "weihnachtsmarkt" or
+            "impressum" or
+            "datenschutz";
+    }
+
+    private static (string Summary, string Content)? GetSeedContent(string slug)
+    {
+        return slug switch
+        {
+            "ueber-uns" => (
+                "Der TSV 1883 Bogen Tischtennis steht für Sport, Jugendarbeit und ein aktives Vereinsleben.",
+                """
+                Der Verein wurde als Abteilung des TSV 1883 Bogen Hauptverein im Jahr 1959 gegründet und im Jahr 2014 als eigenständiger eingetragener Verein verselbständigt.
+
+                Die Mitgliederanzahl liegt insgesamt bei 170, davon 64 aktive Mitglieder. Der Rest sind Fördermitglieder.
+
+                In den Verbandsspielen wurden bisher maximal 11 Mannschaften gemeldet, davon eine Damen-, vier Jugend- und sechs Herrenmannschaften.
+
+                Aus sportlicher Sicht waren die höchsten Ligen der Jugendmannschaft die Verbandsliga Südost (Bayernliga), bei Damen und Herren die Bezirksoberliga.
+
+                Die Jugendarbeit ist ein wichtiger Teil der Vereinsarbeit. Im Schnitt sind 25 aktive Nachwuchsspielerinnen und Nachwuchsspieler im Training und werden von sechs ausgebildeten Übungsleitern mit C-Trainerschein betreut.
+
+                Trainingstage sind Dienstag und Freitag. Das Jugendtraining beginnt jeweils ab 17:30 Uhr.
+
+                In der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen stehen 10 blaue Tischtennisplatten zur Verfügung.
+
+                Veranstaltungen wie Radausflüge, Grillfeste, Weihnachtsmarkt Bogenberg, Jahresabschlussfeier, Jugendbildungsmaßnahmen, Zeltlager, Tischtennis-Camps und Skifahrten runden den sportlichen Bereich ab.
+
+                Aktionen wie Breitensportpreise, Quantensprung, Das grüne Band, DOSB Sterne des Sports, Kooperation Schule und Verein, Ferienfreizeit Stadt Bogen, Sportabzeichen und Sport nach 1 werden regelmäßig angeboten oder durchgeführt.
+                """),
+            "leitbild" => (
+                "Unser Verein steht für Gemeinschaft, Fairness, Respekt und Freude am Tischtennissport.",
+                """
+                Wer sind wir?
+                Wir sind ein engagierter und familiärer Verein, bei dem der Mensch im Mittelpunkt steht. Unabhängig von Alter, Herkunft oder Leistungsniveau möchten wir allen Mitgliedern eine sportliche Heimat bieten. Unsere große Sport-Familie lebt von Gemeinschaft, gegenseitigem Respekt und dem gemeinsamen Interesse am Tischtennissport.
+
+                Was tun wir?
+                Wir fördern Kinder, Jugendliche und Erwachsene entsprechend ihrer individuellen Fähigkeiten, Talente und Leistungsbereitschaft. Dabei legen wir großen Wert auf eine gute sportliche Ausbildung, persönliche Entwicklung und Freude am Sport.
+
+                Was wollen wir erreichen?
+                Unser Ziel ist es, jedem Mitglied die Möglichkeit zu geben, sein persönliches Potential bestmöglich zu entfalten. Wir möchten Begeisterung für den Tischtennissport vermitteln, Talente fördern und Werte wie Teamgeist, Fairness und Verantwortungsbewusstsein stärken.
+
+                Wie sehen wir unser Miteinander?
+                Ein respektvoller und freundschaftlicher Umgang miteinander ist für uns selbstverständlich. Nach dem Motto Einer für Alle, Alle für Einen unterstützen wir uns gegenseitig und wachsen als Gemeinschaft zusammen.
+
+                Was zeichnet uns aus?
+                Wir stehen für Fairness, Respekt und Toleranz. Gewalt, Diskriminierung und Rassismus haben in unserem Verein keinen Platz. Offenheit, gegenseitige Wertschätzung und ein positives Miteinander prägen unseren Verein.
+
+                Wie definieren wir Führungsarbeit?
+                Ehrenamtliches Engagement ist eine wichtige Grundlage unseres Vereins. Trainer, Betreuer, Vorstandschaft und Helfer engagieren sich mit Leidenschaft für den Verein.
+
+                Wie treffen wir Entscheidungen?
+                Grundlegende Entscheidungen treffen wir gemeinsam, konstruktiv und sachlich. Offenheit, Fairness und gegenseitiges Vertrauen bilden die Basis unserer Vereinsarbeit.
+                """),
+            "vereinslokal" => (
+                "Unser Vereinslokal bei Anna in Niedermenach ist Treffpunkt für Mitglieder, Gäste und Familien.",
+                """
+                Das Vereinslokal bei Anna in Niedermenach wird von der Familie Nikomanis geführt und bietet eine gemütliche Atmosphäre für Vereinsmitglieder, Gäste und Familien.
+
+                Mit griechischen und traditionellen Spezialitäten sowie herzlicher Gastfreundschaft ist das Lokal ein beliebter Treffpunkt für gemeinsame Veranstaltungen und gesellige Abende.
+
+                Restaurant bei Anna
+                Niedermenach 3
+                94327 Bogen
+                """),
+            "bogenberg-weihnachtsmarkt" => (
+                "Der TSV 1883 Bogen Tischtennis engagiert sich jedes Jahr am Bogenberger Weihnachtsmarkt.",
+                """
+                Der TSV 1883 Bogen Tischtennis e.V. engagiert sich jedes Jahr mit großer Freude am traditionellen Weihnachtsmarkt am Bogenberg und trägt damit aktiv zum festlichen Vereins- und Gemeindeleben bei.
+
+                Mit viel Einsatz und Unterstützung zahlreicher Helferinnen und Helfer betreibt der Verein dort einen eigenen Stand, der aus zwei liebevoll gestalteten Verkaufshütten besteht.
+
+                An der Getränkehütte werden warme Getränke wie Glühwein, Kinderpunsch und weitere winterliche Getränke angeboten. In der Verpflegungshütte gibt es herzhafte Spezialitäten wie Rosswurstsemmeln und frisch zubereitete Rollbratensemmeln.
+
+                Der Weihnachtsmarkt am Bogenberg ist für den Verein ein besonderes Highlight im Jahreskalender. Gemeinschaft, Zusammenhalt und geselliges Miteinander stehen dabei im Mittelpunkt.
+                """),
+            "schnuppern" => (
+                "Schnuppertraining ist ganzjährig möglich und richtet sich an Kinder, Jugendliche und Erwachsene.",
+                """
+                In Zusammenarbeit mit dem Deutschen Tischtennis Bund organisieren wir regelmäßig Tischtennis-Schnupperkurse. Die Teilnehmer werden spielerisch an die Sportart Tischtennis herangeführt.
+
+                Voraussetzung für die Teilnahme ist nur Spaß an Sport und Bewegung mit dem Ball. Spielerische Erfahrungen oder Talent sind zunächst nebensächlich.
+
+                Außerdem bieten wir das ganze Jahr Schnuppertraining für Jung und Alt an. Kommt einfach zu unseren Trainingszeiten in Sportkleidung vorbei oder kontaktiert unsere Ansprechpartner.
+
+                Tischtennisschläger sind leihweise erhältlich. Eine Mitgliedschaft ist für das Schnuppertraining nicht erforderlich.
+                """),
+            "mitgliedschaft" => (
+                "Hier findest du die wichtigsten Informationen zu den Mitgliedsarten im Verein.",
+                """
+                Aktive Mitglieder
+                Aktive Vereinsmitglieder bringen ihre Arbeitskraft und Ideen ein, gestalten die Vereinsarbeit mit und nehmen in der Regel an Veranstaltungen, Wettbewerben, Turnieren und am Training teil. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen.
+
+                Passive Mitglieder
+                Passive Mitglieder nehmen an keinen Verbandswettbewerben teil, können jedoch am Training teilnehmen. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen und den Verein unterstützen.
+
+                Ehrenmitglieder
+                Mitglieder, die sich um den Verein oder den Sport im Allgemeinen sehr verdient gemacht haben, können durch Beschluss des Vorstandes zum Ehrenmitglied ernannt werden.
+
+                Fördermitglieder
+                Fördernde Mitglieder beteiligen sich nicht aktiv innerhalb des Vereins, unterstützen jedoch die Ziele und den Zweck des Vereins durch regelmäßige oder unregelmäßige Beiträge, Sachleistungen oder Dienstleistungen.
+                """),
+            "stammdatenaenderung" => (
+                "Teile uns Änderungen an Adresse, Kontakt- oder Bankdaten direkt online mit.",
+                """
+                Wenn sich persönliche Daten wie Adresse, Telefonnummer, E-Mail-Adresse oder Bankverbindung ändern, bitten wir unsere Mitglieder, uns dies zeitnah mitzuteilen. Nur so können wir eine reibungslose Kommunikation sowie eine korrekte Verwaltung der Mitgliedsdaten gewährleisten.
+
+                Nutze dafür bitte das Formular auf dieser Seite. Die Angaben werden automatisch per E-Mail an den Verein gesendet.
+                """),
+            "mitgliederentwicklung" => (
+                "Die Mitgliederentwicklung zeigt die Entwicklung des Vereins seit der Verselbständigung.",
+                """
+                Die Mitgliederentwicklung zeigt die Entwicklung des Vereins seit der Verselbständigung. Aktuell zählt der Verein rund 170 Mitglieder, davon 64 aktive Mitglieder.
+                """),
+            "vereinsrangliste" => (
+                "Die Vereinsrangliste verweist auf die aktuelle andro-Rangliste von myTischtennis.",
+                """
+                Die Vereinsrangliste wird auf Basis der andro-Rangliste von myTischtennis geführt und automatisch auf dieser Seite angezeigt.
+                """),
+            "training" => (
+                "Jugend, Erwachsene und freies Training finden regelmäßig in der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen statt.",
+                """
+                Wann trainiert die Jugend?
+                Dienstag und Freitag, jeweils ab 17:30 Uhr.
+
+                Wann trainieren Erwachsene?
+                Dienstag und Freitag, jeweils ab 19:00 Uhr.
+
+                Wo findet das Training statt?
+                In der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen stehen 10 blaue Tischtennisplatten zur Verfügung.
+                """),
+            "news" => (
+                "Neuigkeiten aus Training, Spielbetrieb, Vereinsleben und Jugendbereich.",
+                ""),
+            "kontakt" => (
+                "Fragen zum Training, Probetraining oder zur Mitgliedschaft beantworten wir unkompliziert.",
+                """
+                Wie erreichst du uns?
+                Schreib uns, wenn du beim Training reinschnuppern möchtest oder Informationen zum Verein brauchst. Neue Spielerinnen und Spieler sind herzlich willkommen.
+                """),
+            "sponsoren" => (
+                "Diese Unternehmen unterstützen unseren Verein und das Tischtennis in Bogen.",
+                ""),
+            "galerie" => (
+                "Bilder aus Training, Spielbetrieb, Aktionen und Vereinsleben.",
+                ""),
+            "links" => (
+                "Social Media, Webshop und weitere wichtige Anlaufstellen.",
+                """
+                Wo findest du uns online?
+                Hier findest du unsere Social-Media-Kanäle und weitere wichtige Links.
+
+                Wo gibt es Vereinskleidung?
+                Vereinskleidung und Zubehör findest du in unserem Webshop.
+                """),
+            "weihnachtsmarkt" => (
+                "Eindrücke und Bilder rund um den Weihnachtsmarkt des Vereins.",
+                """
+                Was macht den Weihnachtsmarkt besonders?
+                Der Weihnachtsmarkt ist ein fester Treffpunkt im Vereinsjahr. Mitglieder, Familien und Gäste kommen zusammen, helfen mit und erleben den Verein auch abseits der Sporthalle.
+
+                Was gibt es zu sehen?
+                Hier sammeln wir Eindrücke, Bilder und Erinnerungen rund um den Weihnachtsmarkt und die gemeinsamen Aktionen des TSV 1883 Bogen Tischtennis.
+                """),
+            "impressum" => (
+                "Rechtliche Angaben zum TSV 1883 Bogen Tischtennis.",
+                ""),
+            "datenschutz" => (
+                "Informationen zur Verarbeitung personenbezogener Daten auf dieser Website.",
+                ""),
+            _ => null
+        };
     }
 
     private async Task SeedSettingsAsync(IConfiguration configuration)
     {
-        if (await _context.SiteSettings.AnyAsync(x => x.Key == SiteSettingsService.MemberApplicationRecipientEmail))
-            return;
-
-        _context.SiteSettings.Add(new SiteSetting
+        if (!await _context.SiteSettings.AnyAsync(x => x.Key == SiteSettingsService.MemberApplicationRecipientEmail))
         {
-            Key = SiteSettingsService.MemberApplicationRecipientEmail,
-            Value = configuration["EmailSettings:ToEmail"] ?? "",
-            UpdatedAt = DateTime.Now
-        });
+            var configuredEmail = configuration["EmailSettings:ToEmail"] ?? "";
+
+            _context.SiteSettings.Add(new SiteSetting
+            {
+                Key = SiteSettingsService.MemberApplicationRecipientEmail,
+                Value = IsValidEmail(configuredEmail) ? configuredEmail : "",
+                UpdatedAt = DateTime.Now
+            });
+        }
+
+        if (!await _context.SiteSettings.AnyAsync(x => x.Key == SiteSettingsService.RankingUrl))
+        {
+            _context.SiteSettings.Add(new SiteSetting
+            {
+                Key = SiteSettingsService.RankingUrl,
+                Value = "https://www.mytischtennis.de/rankings/andro-rangliste?clubnr=415010&fednickname=ByTTV&all-players=on&continent=all&country=all",
+                UpdatedAt = DateTime.Now
+            });
+        }
+
+        if (!await _context.SiteSettings.AnyAsync(x => x.Key == SiteSettingsService.MemberDevelopmentData))
+        {
+            _context.SiteSettings.Add(new SiteSetting
+            {
+                Key = SiteSettingsService.MemberDevelopmentData,
+                Value = System.Text.Json.JsonSerializer.Serialize(
+                    SiteSettingsService.GetDefaultMemberDevelopment(),
+                    new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)),
+                UpdatedAt = DateTime.Now
+            });
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task SeedSponsorsAsync()
+    {
+        var sponsors = new (string Name, string LogoPath, string? WebsiteUrl)[]
+        {
+            ("Borowiak Rechtsanwälte", "/uploads/sponsors/borowiak-rechtsanwaelte.jpg", null),
+            ("Hubertus Apotheke", "/uploads/sponsors/hubertus-apotheke.jpg", null),
+            ("meine Reiselounge Bogen", "/uploads/sponsors/meine-reiselounge.png", null),
+            ("Physio-Zentrum Bogen", "/uploads/sponsors/physio-zentrum-bogen.jpg", null),
+            ("venus werbeagentur gmbh", "/uploads/sponsors/venus.png", null),
+            ("Volksbank Straubing", "/uploads/sponsors/volksbank-straubing.png", null),
+            ("Zahnarztpraxis Dr. Huber", "/uploads/sponsors/zahnarzt-dr-huber.jpg", null)
+        };
+
+        foreach (var seed in sponsors)
+        {
+            var sponsor = await _context.Sponsors
+                .FirstOrDefaultAsync(x => x.Name == seed.Name);
+
+            if (sponsor is null)
+            {
+                _context.Sponsors.Add(new Sponsor
+                {
+                    Name = seed.Name,
+                    LogoPath = seed.LogoPath,
+                    WebsiteUrl = seed.WebsiteUrl,
+                    IsActive = true
+                });
+
+                continue;
+            }
+
+            sponsor.LogoPath = seed.LogoPath;
+            sponsor.WebsiteUrl = seed.WebsiteUrl ?? sponsor.WebsiteUrl;
+            sponsor.IsActive = true;
+        }
 
         await _context.SaveChangesAsync();
     }

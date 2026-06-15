@@ -20,10 +20,35 @@ else
         }
     </section>
 
-    <section class="content-card cms-content">
-        @foreach (var paragraph in GetParagraphs(contentPage.Content))
+    @if (IsVereinslokal)
+    {
+        <section class="content-card venue-feature">
+            <img class="venue-logo-banner"
+                 src="/uploads/vereinslokal/restaurant-bei-anna-logo.jpg"
+                 alt="Restaurant bei Anna" />
+
+            <figure class="venue-photo-layout">
+                <img src="/uploads/vereinslokal/restaurant-bei-anna-team.jpg"
+                     alt="Restaurant bei Anna mit TSV 1883 Bogen Trikot" />
+                <figcaption>
+                    <p class="cms-text-card__question">Wo treffen wir uns neben der Halle?</p>
+                    <h2>Restaurant bei Anna</h2>
+                    <p>Unser Treffpunkt für Vereinsleben, Austausch und gemeinsame Abende abseits der Platte.</p>
+                </figcaption>
+            </figure>
+        </section>
+    }
+
+    <section class="cms-section-list">
+        @foreach (var section in GetRenderedSections(contentPage))
         {
-            <p>@paragraph</p>
+            <article class="content-card cms-text-card">
+                @if (!string.IsNullOrWhiteSpace(section.Heading))
+                {
+                    <p class="cms-text-card__question">@section.Heading</p>
+                }
+                <p>@section.Text</p>
+            </article>
         }
     </section>
 
@@ -58,20 +83,125 @@ else
     public string Slug { get; set; } = "";
 
     private ContentPage? contentPage;
+    private bool IsVereinslokal => string.Equals(contentPage?.Slug, "vereinslokal", StringComparison.OrdinalIgnoreCase);
+    private bool IsMitgliedschaft => string.Equals(contentPage?.Slug, "mitgliedschaft", StringComparison.OrdinalIgnoreCase);
+    private bool IsUeberUns => string.Equals(contentPage?.Slug, "ueber-uns", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnParametersSetAsync()
     {
         contentPage = await ContentPageService.GetBySlugAsync(Slug);
     }
 
-    private static IEnumerable<string> GetParagraphs(string content)
+    private static IEnumerable<CmsTextSection> GetContentSections(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
-            return ["Diese Seite kann im Adminbereich mit Text und Bildern gefüllt werden."];
+            return [];
 
-        return content
+        var lines = content
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x));
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        var sections = new List<CmsTextSection>();
+        var textBuffer = new List<string>();
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var line = lines[index];
+
+            if (line.EndsWith('?') && index + 1 < lines.Count)
+            {
+                AddBufferedTextSection(sections, textBuffer);
+                sections.Add(new CmsTextSection(line, lines[index + 1]));
+                index++;
+                continue;
+            }
+
+            var questionMarkIndex = line.IndexOf('?');
+            if (questionMarkIndex >= 0 && questionMarkIndex < line.Length - 1)
+            {
+                AddBufferedTextSection(sections, textBuffer);
+                var heading = line[..(questionMarkIndex + 1)].Trim();
+                var text = line[(questionMarkIndex + 1)..].Trim();
+                sections.Add(new CmsTextSection(heading, text));
+                continue;
+            }
+
+            textBuffer.Add(line);
+        }
+
+        AddBufferedTextSection(sections, textBuffer);
+        return sections;
+    }
+
+    private IEnumerable<CmsTextSection> GetRenderedSections(ContentPage currentPage)
+    {
+        if (IsMitgliedschaft)
+            return GetMembershipSections();
+
+        if (IsUeberUns)
+            return GetAboutSections();
+
+        return GetContentSections(currentPage.Content);
+    }
+
+    private static IEnumerable<CmsTextSection> GetMembershipSections()
+    {
+        return
+        [
+            new CmsTextSection(
+                "Aktive Mitglieder",
+                "Aktive Vereinsmitglieder bringen ihre Arbeitskraft und Ideen ein, gestalten die Vereinsarbeit mit und nehmen in der Regel an Veranstaltungen, Wettbewerben, Turnieren und am Training teil. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen."),
+            new CmsTextSection(
+                "Passive Mitglieder",
+                "Passive Mitglieder nehmen an keinen Verbandswettbewerben teil, können jedoch am Training teilnehmen. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen und den Verein unterstützen."),
+            new CmsTextSection(
+                "Ehrenmitglieder",
+                "Mitglieder, die sich um den Verein oder den Sport im Allgemeinen sehr verdient gemacht haben, können durch Beschluss des Vorstandes zum Ehrenmitglied ernannt werden."),
+            new CmsTextSection(
+                "Fördermitglieder",
+                "Fördernde Mitglieder beteiligen sich nicht aktiv innerhalb des Vereins, unterstützen jedoch die Ziele und den Zweck des Vereins durch regelmäßige oder unregelmäßige Beiträge, Sachleistungen oder Dienstleistungen.")
+        ];
+    }
+
+    private static IEnumerable<CmsTextSection> GetAboutSections()
+    {
+        return
+        [
+            new CmsTextSection(
+                "Wer sind wir?",
+                "Der Verein wurde als Abteilung des TSV 1883 Bogen Hauptverein im Jahr 1959 gegründet und im Jahr 2014 als eigenständiger eingetragener Verein verselbständigt."),
+            new CmsTextSection(
+                "Wie groß ist der Verein?",
+                "Die Mitgliederanzahl liegt insgesamt bei 170, davon 64 aktive Mitglieder. Der Rest sind Fördermitglieder."),
+            new CmsTextSection(
+                "Wie spielen wir im Verband?",
+                "In den Verbandsspielen wurden bisher maximal 11 Mannschaften gemeldet, davon eine Damen-, vier Jugend- und sechs Herrenmannschaften."),
+            new CmsTextSection(
+                "Welche sportlichen Erfolge gab es?",
+                "Aus sportlicher Sicht waren die höchsten Ligen der Jugendmannschaft die Verbandsliga Südost (Bayernliga), bei Damen und Herren die Bezirksoberliga."),
+            new CmsTextSection(
+                "Was bedeutet Jugendarbeit für uns?",
+                "Die Jugendarbeit ist ein wichtiger Teil der Vereinsarbeit. Im Schnitt sind 25 aktive Nachwuchsspielerinnen und Nachwuchsspieler im Training und werden von sechs ausgebildeten Übungsleitern mit C-Trainerschein betreut."),
+            new CmsTextSection(
+                "Wo und wann trainieren wir?",
+                "Trainingstage sind Dienstag und Freitag. Das Jugendtraining beginnt jeweils ab 17:30 Uhr. In der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen stehen 10 blaue Tischtennisplatten zur Verfügung."),
+            new CmsTextSection(
+                "Was gehört zum Vereinsleben?",
+                "Veranstaltungen wie Radausflüge, Grillfeste, Weihnachtsmarkt Bogenberg, Jahresabschlussfeier, Jugendbildungsmaßnahmen, Zeltlager, Tischtennis-Camps und Skifahrten runden den sportlichen Bereich ab."),
+            new CmsTextSection(
+                "Welche Aktionen bieten wir an?",
+                "Aktionen wie Breitensportpreise, Quantensprung, Das grüne Band, DOSB Sterne des Sports, Kooperation Schule und Verein, Ferienfreizeit Stadt Bogen, Sportabzeichen und Sport nach 1 werden regelmäßig angeboten oder durchgeführt.")
+        ];
+    }
+
+    private static void AddBufferedTextSection(List<CmsTextSection> sections, List<string> textBuffer)
+    {
+        if (textBuffer.Count == 0)
+            return;
+
+        sections.Add(new CmsTextSection(null, string.Join("\n", textBuffer)));
+        textBuffer.Clear();
     }
 
     private static string GetMapUrl(ContentPage currentPage)
@@ -82,4 +212,6 @@ else
         var query = Uri.EscapeDataString(currentPage.MapAddress ?? "Bogen Deutschland");
         return $"https://www.google.com/maps?q={query}&output=embed";
     }
+
+    private sealed record CmsTextSection(string? Heading, string Text);
 }

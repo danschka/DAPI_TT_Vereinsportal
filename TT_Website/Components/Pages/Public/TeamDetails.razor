@@ -7,11 +7,6 @@
 
 @inject TeamService TeamService
 
-@if (isLoading)
-{
-    <div class="alert alert-info">Mannschaftsdaten werden automatisch geladen.</div>
-}
-
 @if (team is null)
 {
     <div class="alert alert-warning">Mannschaft wurde nicht gefunden.</div>
@@ -21,7 +16,7 @@ else
     <section class="page-hero compact">
         <p class="eyebrow">@team.Category</p>
         <h1>@team.Name</h1>
-        <p>Tabellen, Spielpläne und Mannschaftsstatistiken werden beim Öffnen automatisch aktualisiert.</p>
+        <p>Tabellen, Spielpläne und Mannschaftsstatistiken werden aus den zuletzt synchronisierten myTischtennis-Daten angezeigt.</p>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -29,14 +24,17 @@ else
         <div class="alert @statusCssClass">@statusMessage</div>
     }
 
+    @if (isSyncing)
+    {
+        <div class="alert alert-info">myTischtennis-Daten werden automatisch aktualisiert.</div>
+    }
+
     @if (team.Rounds.Any())
     {
         @foreach (var round in team.Rounds.OrderBy(GetRoundOrder))
         {
             var roundName = GetRoundDisplayName(round.RoundName);
-            var roundTableRows = GetDisplayTableRows(round);
-            var roundScheduleRows = ParseRows(round.ScheduleDataJson);
-            var roundStatisticsRows = ParseRows(round.StatisticsDataJson);
+            var roundData = GetRoundDisplayData(round);
 
             <section class="content-card">
                 <div class="section-heading">
@@ -50,13 +48,13 @@ else
 
             <DataTableCard Title="@($"Tabelle {roundName}")"
                            EmptyMessage="Für diese Runde ist noch keine Ligatabelle verfügbar."
-                           Rows="roundTableRows" />
+                           Rows="roundData.TableRows" />
             <DataTableCard Title="@($"Spielplan {roundName}")"
                            EmptyMessage="Für diese Runde ist noch kein Spielplan verfügbar."
-                           Rows="roundScheduleRows" />
+                           Rows="roundData.ScheduleRows" />
             <DataTableCard Title="@($"Mannschaftsstatistik {roundName}")"
                            EmptyMessage="Für diese Runde ist noch keine Mannschaftsstatistik verfügbar."
-                           Rows="roundStatisticsRows" />
+                           Rows="roundData.StatisticsRows" />
         }
     }
     else
@@ -90,30 +88,59 @@ else
     public int Id { get; set; }
 
     private Team? team;
-    private bool isLoading;
+    private bool isSyncing;
+    private bool syncStarted;
     private string statusMessage = "";
     private string statusCssClass = "alert-info";
     private List<List<string>> tableRows = [];
     private List<List<string>> scheduleRows = [];
     private List<List<string>> statisticsRows = [];
+    private Dictionary<int, RoundDisplayData> roundDisplayData = [];
 
     protected override async Task OnParametersSetAsync()
     {
-        isLoading = true;
         statusMessage = "";
-
+        syncStarted = false;
         SetTeam(await TeamService.GetByIdAsync(Id));
+
+        if (team is not null && !HasAnyImportedData(team))
+        {
+            statusCssClass = "alert-info";
+            statusMessage = "Für diese Mannschaft werden die myTischtennis-Daten automatisch geladen.";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || syncStarted || team is null)
+            return;
+
+        syncStarted = true;
+        isSyncing = true;
+        await InvokeAsync(StateHasChanged);
 
         var syncResult = await TeamService.SyncTeamWithRoundsAsync(Id);
         SetTeam(await TeamService.GetByIdAsync(Id));
 
-        if (team is not null && !syncResult.Success)
+        isSyncing = false;
+
+        if (syncResult.Success)
+        {
+            statusCssClass = "alert-success";
+            statusMessage = "myTischtennis-Daten wurden aktualisiert.";
+        }
+        else if (team is not null && HasAnyImportedData(team))
         {
             statusCssClass = "alert-warning";
-            statusMessage = $"{syncResult.Message} Vorhandene Daten werden angezeigt.";
+            statusMessage = $"{syncResult.Message} Die zuletzt gespeicherten Daten werden angezeigt.";
+        }
+        else
+        {
+            statusCssClass = "alert-warning";
+            statusMessage = syncResult.Message;
         }
 
-        isLoading = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void SetTeam(Team? loadedTeam)
@@ -131,9 +158,13 @@ else
 
         if (!statisticsRows.Any() && IsStatisticsTable(importedTableRows))
             statisticsRows = importedTableRows;
+
+        roundDisplayData = team?.Rounds.ToDictionary(
+            round => round.Id,
+            CreateRoundDisplayData) ?? [];
     }
 
-    private List<List<string>> ParseRows(string? data)
+    private static List<List<string>> ParseRows(string? data)
     {
         if (string.IsNullOrWhiteSpace(data))
             return [];
@@ -159,10 +190,42 @@ else
             .ToList();
     }
 
-    private List<List<string>> GetDisplayTableRows(TeamRound round)
+    private RoundDisplayData GetRoundDisplayData(TeamRound round)
+    {
+        return roundDisplayData.TryGetValue(round.Id, out var data)
+            ? data
+            : CreateRoundDisplayData(round);
+    }
+
+    private RoundDisplayData CreateRoundDisplayData(TeamRound round)
     {
         var importedTableRows = ParseRows(round.TableDataJson);
-        return IsScheduleTable(importedTableRows) || IsStatisticsTable(importedTableRows) ? [] : importedTableRows;
+        var displayTableRows = IsScheduleTable(importedTableRows) || IsStatisticsTable(importedTableRows) ? [] : importedTableRows;
+        var displayScheduleRows = ParseRows(round.ScheduleDataJson);
+        var displayStatisticsRows = ParseRows(round.StatisticsDataJson);
+
+        if (!displayScheduleRows.Any() && IsScheduleTable(importedTableRows))
+            displayScheduleRows = NormalizeScheduleRows(importedTableRows);
+
+        if (!displayStatisticsRows.Any() && IsStatisticsTable(importedTableRows))
+            displayStatisticsRows = importedTableRows;
+
+        return new RoundDisplayData(displayTableRows, displayScheduleRows, displayStatisticsRows);
+    }
+
+    private static bool HasAnyImportedData(Team team)
+    {
+        if (!string.IsNullOrWhiteSpace(team.TableDataJson) ||
+            !string.IsNullOrWhiteSpace(team.ScheduleDataJson) ||
+            !string.IsNullOrWhiteSpace(team.StatisticsDataJson))
+        {
+            return true;
+        }
+
+        return team.Rounds.Any(round =>
+            !string.IsNullOrWhiteSpace(round.TableDataJson) ||
+            !string.IsNullOrWhiteSpace(round.ScheduleDataJson) ||
+            !string.IsNullOrWhiteSpace(round.StatisticsDataJson));
     }
 
     private static int GetRoundOrder(TeamRound round)
@@ -254,4 +317,9 @@ else
             ? "Ligadaten bitte neu synchronisieren."
             : league;
     }
+
+    private sealed record RoundDisplayData(
+        List<List<string>> TableRows,
+        List<List<string>> ScheduleRows,
+        List<List<string>> StatisticsRows);
 }

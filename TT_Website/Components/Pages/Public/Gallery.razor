@@ -1,15 +1,22 @@
-﻿@page "/gallery"
+@page "/gallery"
 
 @using TT_Website.Models
 @using TT_Website.Services
 
 @inject GalleryService GalleryService
 
-<h1>Bildergalerie</h1>
+<EditablePublicPageHeader Slug="galerie"
+                          Eyebrow="Galerie"
+                          DefaultTitle="Bildergalerie"
+                          DefaultSummary="Bilder aus Training, Spielbetrieb, Aktionen und Vereinsleben."
+                          ShowContent="true" />
 
 @if (images.Count == 0)
 {
-    <p>Noch keine Bilder vorhanden.</p>
+    <section class="content-card empty-state">
+        <h2>Noch keine Bilder vorhanden</h2>
+        <p class="text-muted">Sobald Bilder bereitgestellt wurden, erscheinen sie hier.</p>
+    </section>
 }
 else
 {

@@ -5,8 +5,8 @@
 
 <header class="site-header">
     <a class="site-brand" href="/">
-        <span>TT</span>
-        <strong>TSV 1883 Bogen Tischtennis</strong>
+        <img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" />
+        <strong>TSV 1883 Bogen</strong>
     </a>
 
     <input id="site-nav-toggle" type="checkbox" class="site-nav-toggle" />
@@ -24,9 +24,18 @@
                 .ToList();
 
             <div class="site-nav-item">
-                <NavLink class="site-nav-link" href="@GetPageUrl(navPage)" Match="@GetMatch(navPage)">
-                    @navPage.Title
-                </NavLink>
+                @if (!string.IsNullOrWhiteSpace(navPage.ExternalUrl))
+                {
+                    <a class="site-nav-link" href="@navPage.ExternalUrl" target="_blank" rel="noopener noreferrer">
+                        @navPage.Title
+                    </a>
+                }
+                else
+                {
+                    <NavLink class="site-nav-link" href="@GetPageUrl(navPage)" Match="@GetMatch(navPage)">
+                        @navPage.Title
+                    </NavLink>
+                }
 
                 @if (children.Count > 0)
                 {
@@ -50,6 +59,18 @@
                 }
             </div>
         }
+
+        <div class="site-nav-item">
+            <NavLink class="site-nav-link" href="/news" Match="NavLinkMatch.Prefix">
+                News
+            </NavLink>
+        </div>
+
+        <div class="site-nav-item">
+            <NavLink class="site-nav-link" href="/kontakt" Match="NavLinkMatch.Prefix">
+                Kontakt
+            </NavLink>
+        </div>
     </nav>
 
     <div class="site-actions">
@@ -86,6 +107,10 @@
             "mannschaften-cms" => "/mannschaften",
             "mannschaftsuebersicht" => "/mannschaften",
             "aufnahmeerklaerung" => "/mitglied-werden",
+            "stammdatenaenderung" => "/stammdatenaenderung",
+            "mitgliederentwicklung" => "/mitgliederentwicklung",
+            "vereinsrangliste" => "/vereinsrangliste",
+            "dokumente" => "/downloads",
             _ => $"/seite/{page.Slug}"
         };
     }

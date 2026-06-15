@@ -1,4 +1,4 @@
-﻿@page "/admin/gallery-upload"
+@page "/admin/gallery-upload"
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Components.Forms
@@ -8,54 +8,80 @@
 @inject GalleryService GalleryService
 @inject FileUploadService FileUploadService
 
-<h1>Bild hochladen</h1>
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">Galerie</p>
+        <h1>Bild hochladen</h1>
+        <p class="text-muted">Neue Bilder für Galeriegruppen und Seiteninhalte bereitstellen.</p>
+    </div>
+    <a class="btn btn-outline-primary" href="/admin/gallery">Zur Galerie</a>
+</section>
 
-<div>
-    <InputText @bind-Value="title" placeholder="Titel" />
-</div>
+<section class="content-card form-card">
+    <label class="form-label">Titel</label>
+    <InputText class="form-control" @bind-Value="title" placeholder="Titel" />
 
-<br />
+    <label class="form-label">Bilddatei</label>
+    <InputFile @key="uploadInputKey" class="form-control" OnChange="HandleFileUpload" />
 
-<InputFile OnChange="HandleFileUpload" />
+    <label class="form-label">Optional direkt einer Gruppe hinzufügen</label>
+    <select class="form-select" @bind="selectedGroupId">
+        <option value="0">Keine Gruppe</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Id">@group.Name</option>
+        }
+    </select>
 
-<br />
-<br />
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="UploadImage">
+            Hochladen
+        </button>
+    </div>
 
-<button type="button" @onclick="UploadImage">
-    Hochladen
-</button>
-
-@if (!string.IsNullOrEmpty(message))
-{
-    <p>@message</p>
-}
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @messageClass">@message</div>
+    }
+</section>
 
 @code {
-
     private IBrowserFile? selectedFile;
+    private List<GalleryGroup> groups = [];
+    private int selectedGroupId;
+    private int uploadInputKey;
     private string title = "";
     private string message = "";
+    private string messageClass = "alert-info";
+
+    protected override async Task OnInitializedAsync()
+    {
+        groups = await GalleryService.GetGroupsAsync();
+    }
 
     private void HandleFileUpload(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
+
+        if (string.IsNullOrWhiteSpace(title))
+            title = Path.GetFileNameWithoutExtension(e.File.Name);
     }
 
     private async Task UploadImage()
     {
         try
         {
-            message = "Upload gestartet...";
+            SetMessage("Upload gestartet...", "alert-info");
 
             if (selectedFile == null)
             {
-                message = "Bitte Bild auswählen.";
+                SetMessage("Bitte Bild auswählen.", "alert-warning");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                message = "Bitte Titel eingeben.";
+                SetMessage("Bitte Titel eingeben.", "alert-warning");
                 return;
             }
 
@@ -67,20 +93,40 @@
 
             var image = new GalleryImage
             {
-                Title = title,
+                Title = title.Trim(),
                 ImagePath = imagePath
             };
 
-            await GalleryService.AddAsync(image);
+            image = await GalleryService.AddAsync(image);
 
-            message = "Bild erfolgreich hochgeladen.";
+            if (selectedGroupId > 0)
+            {
+                var result = await GalleryService.AddImageToGroupAsync(selectedGroupId, image.Id);
+                SetMessage(
+                    result.Success
+                        ? "Bild erfolgreich hochgeladen und der Gruppe hinzugefügt."
+                        : $"Bild erfolgreich hochgeladen. {result.Message}",
+                    result.Success ? "alert-success" : "alert-warning");
+            }
+            else
+            {
+                SetMessage("Bild erfolgreich hochgeladen.", "alert-success");
+            }
 
-            title = "";
             selectedFile = null;
+            title = "";
+            selectedGroupId = 0;
+            uploadInputKey++;
         }
         catch (Exception ex)
         {
-            message = ex.Message;
+            SetMessage(ex.Message, "alert-danger");
         }
+    }
+
+    private void SetMessage(string value, string cssClass)
+    {
+        message = value;
+        messageClass = cssClass;
     }
 }
