@@ -1,4 +1,4 @@
-<div class="card mb-4 shadow-sm">
+<div class="card mb-4 shadow-sm data-table-card">
     <div class="card-body">
         @if (!string.IsNullOrWhiteSpace(Title))
         {
@@ -29,7 +29,7 @@
                             <tr>
                                 @for (var index = 0; index < ColumnCount; index++)
                                 {
-                                    <td>@GetCell(row, index)</td>
+                                    <td data-label="@GetHeader(index)">@GetCell(row, index)</td>
                                 }
                             </tr>
                         }
@@ -55,5 +55,10 @@
     private string GetCell(List<string> row, int index)
     {
         return index < row.Count ? row[index] : "";
+    }
+
+    private string GetHeader(int index)
+    {
+        return Rows.Count > 0 && index < Rows[0].Count ? Rows[0][index] : "";
     }
 }

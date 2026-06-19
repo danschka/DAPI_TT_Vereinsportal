@@ -9,49 +9,62 @@ public record GalleryGroupImageResult(bool Success, string Message);
 public class GalleryService
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public GalleryService(AppDbContext context)
+    public GalleryService(AppDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
     public async Task<List<GalleryImage>> GetAllAsync()
     {
-        return await _context.GalleryImages
+        var images = await _context.GalleryImages
             .AsNoTracking()
             .OrderByDescending(x => x.UploadedAt)
             .ToListAsync();
+
+        return GetExistingImages(images);
     }
 
     public async Task<List<GalleryGroup>> GetGroupsAsync()
     {
-        return await _context.GalleryGroups
+        var groups = await _context.GalleryGroups
             .AsNoTracking()
             .Include(x => x.Images)
             .ThenInclude(x => x.GalleryImage)
             .Include(x => x.PageAssignments)
             .OrderBy(x => x.Name)
             .ToListAsync();
+
+        RemoveMissingGroupImages(groups);
+        return groups;
     }
 
     public async Task<GalleryGroup?> GetGroupByIdAsync(int id)
     {
-        return await _context.GalleryGroups
+        var group = await _context.GalleryGroups
             .AsNoTracking()
             .Include(x => x.Images.OrderBy(image => image.SortOrder))
             .ThenInclude(x => x.GalleryImage)
             .Include(x => x.PageAssignments)
             .FirstOrDefaultAsync(x => x.Id == id);
+
+        RemoveMissingGroupImages(group);
+        return group;
     }
 
     public async Task<PageGalleryAssignment?> GetPageAssignmentAsync(string pageKey)
     {
-        return await _context.PageGalleryAssignments
+        var assignment = await _context.PageGalleryAssignments
             .AsNoTracking()
             .Include(x => x.GalleryGroup)
             .ThenInclude(x => x!.Images.OrderBy(image => image.SortOrder))
             .ThenInclude(x => x.GalleryImage)
             .FirstOrDefaultAsync(x => x.PageKey == pageKey);
+
+        RemoveMissingGroupImages(assignment?.GalleryGroup);
+        return assignment;
     }
 
     public async Task<GalleryImage> AddAsync(GalleryImage image)
@@ -184,10 +197,37 @@ public class GalleryService
 
     public async Task<List<GalleryImage>> GetLatestAsync(int count)
     {
-        return await _context.GalleryImages
+        var images = await _context.GalleryImages
             .AsNoTracking()
             .OrderByDescending(x => x.UploadedAt)
-            .Take(count)
             .ToListAsync();
+
+        return GetExistingImages(images).Take(count).ToList();
+    }
+
+    private List<GalleryImage> GetExistingImages(IEnumerable<GalleryImage> images)
+    {
+        return images
+            .Where(image => WebFilePathValidator.Exists(_environment, image.ImagePath))
+            .ToList();
+    }
+
+    private void RemoveMissingGroupImages(IEnumerable<GalleryGroup> groups)
+    {
+        foreach (var group in groups)
+        {
+            RemoveMissingGroupImages(group);
+        }
+    }
+
+    private void RemoveMissingGroupImages(GalleryGroup? group)
+    {
+        if (group is null)
+            return;
+
+        group.Images = group.Images
+            .Where(image => image.GalleryImage is not null
+                && WebFilePathValidator.Exists(_environment, image.GalleryImage.ImagePath))
+            .ToList();
     }
 }

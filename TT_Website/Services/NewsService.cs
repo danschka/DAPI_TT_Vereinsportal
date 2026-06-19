@@ -7,27 +7,35 @@ namespace TT_Website.Services;
 public class NewsService
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public NewsService(AppDbContext context)
+    public NewsService(AppDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
     public async Task<List<NewsPost>> GetAllAsync()
     {
-        return await _context.NewsPosts
+        var posts = await _context.NewsPosts
             .AsNoTracking()
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
+
+        ClearMissingImagePaths(posts);
+        return posts;
     }
 
     public async Task<List<NewsPost>> GetPublishedAsync()
     {
-        return await _context.NewsPosts
+        var posts = await _context.NewsPosts
             .AsNoTracking()
             .Where(x => x.IsPublished)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
+
+        ClearMissingImagePaths(posts);
+        return posts;
     }
 
     public async Task AddAsync(NewsPost newsPost)
@@ -49,12 +57,15 @@ public class NewsService
 
     public async Task<List<NewsPost>> GetLatestAsync(int count)
     {
-        return await _context.NewsPosts
+        var posts = await _context.NewsPosts
             .AsNoTracking()
             .Where(x => x.IsPublished)
             .OrderByDescending(x => x.CreatedAt)
             .Take(count)
             .ToListAsync();
+
+        ClearMissingImagePaths(posts);
+        return posts;
     }
 
     public async Task<NewsPost?> GetByIdAsync(int id)
@@ -76,5 +87,16 @@ public class NewsService
         existingNewsPost.IsPublished = newsPost.IsPublished;
 
         await _context.SaveChangesAsync();
+    }
+
+    private void ClearMissingImagePaths(IEnumerable<NewsPost> posts)
+    {
+        foreach (var post in posts)
+        {
+            if (WebFilePathValidator.GetExistingPath(_environment, post.ImagePath) is null)
+            {
+                post.ImagePath = null;
+            }
+        }
     }
 }

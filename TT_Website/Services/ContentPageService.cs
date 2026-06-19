@@ -7,10 +7,12 @@ namespace TT_Website.Services;
 public class ContentPageService
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public ContentPageService(AppDbContext context)
+    public ContentPageService(AppDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
     public async Task<List<ContentPage>> GetAllAsync()
@@ -49,13 +51,16 @@ public class ContentPageService
 
     public async Task<ContentPage?> GetBySlugAsync(string slug)
     {
-        return await _context.ContentPages
+        var page = await _context.ContentPages
             .Include(x => x.GalleryGroups.OrderBy(group => group.SortOrder))
             .ThenInclude(x => x.GalleryGroup)
             .ThenInclude(x => x!.Images.OrderBy(image => image.SortOrder))
             .ThenInclude(x => x.GalleryImage)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
+
+        RemoveMissingPageGalleryImages(page);
+        return page;
     }
 
     public async Task SaveAsync(ContentPage page)
@@ -178,5 +183,22 @@ public class ContentPageService
             .Replace("ü", "ue")
             .Replace("ß", "ss")
             .Replace(" ", "-");
+    }
+
+    private void RemoveMissingPageGalleryImages(ContentPage? page)
+    {
+        if (page is null)
+            return;
+
+        foreach (var assignment in page.GalleryGroups)
+        {
+            if (assignment.GalleryGroup is null)
+                continue;
+
+            assignment.GalleryGroup.Images = assignment.GalleryGroup.Images
+                .Where(image => image.GalleryImage is not null
+                    && WebFilePathValidator.Exists(_environment, image.GalleryImage.ImagePath))
+                .ToList();
+        }
     }
 }

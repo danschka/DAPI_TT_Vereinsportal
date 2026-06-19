@@ -39,8 +39,55 @@
             <label class="form-label">Kurztext</label>
             <InputTextArea class="form-control" @bind-Value="currentPage.Summary" />
 
-            <label class="form-label">Inhalt</label>
-            <InputTextArea class="form-control textarea-lg" @bind-Value="currentPage.Content" />
+            <div class="admin-section-toolbar">
+                <div>
+                    <label class="form-label">Text-Cards</label>
+                    <div class="form-text">
+                        Jede Textbox wird auf der öffentlichen Seite als eigene Card angezeigt.
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary" type="button" @onclick="AddTextCard">Card hinzufügen</button>
+            </div>
+
+            <div class="admin-text-card-list">
+                @for (var index = 0; index < textCards.Count; index++)
+                {
+                    var cardIndex = index;
+                    var card = textCards[cardIndex];
+
+                    <article class="admin-text-card-editor">
+                        <div class="admin-text-card-editor__header">
+                            <strong>Card @(cardIndex + 1)</strong>
+                            <div class="button-row compact">
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        disabled="@(cardIndex == 0)"
+                                        @onclick="() => MoveTextCard(cardIndex, -1)">
+                                    Hoch
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        disabled="@(cardIndex == textCards.Count - 1)"
+                                        @onclick="() => MoveTextCard(cardIndex, 1)">
+                                    Runter
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                        type="button"
+                                        disabled="@(textCards.Count == 1)"
+                                        @onclick="() => RemoveTextCard(cardIndex)">
+                                    Entfernen
+                                </button>
+                            </div>
+                        </div>
+
+                        <label class="form-label">Unterüberschrift</label>
+                        <InputText class="form-control" @bind-Value="card.Heading" placeholder="z. B. Was macht uns aus?" />
+
+                        <label class="form-label">Text</label>
+                        <InputTextArea class="form-control textarea-md" @bind-Value="card.Text" />
+                    </article>
+                }
+            </div>
 
             <label class="form-label">Externer Link</label>
             <InputText class="form-control" @bind-Value="currentPage.ExternalUrl" placeholder="https://..." />
@@ -132,6 +179,7 @@
     private List<ContentPage> pages = [];
     private List<GalleryGroup> groups = [];
     private ContentPage currentPage = new();
+    private List<EditableTextCard> textCards = [new()];
     private string message = "";
     private string messageClass = "alert-info";
     private int selectedEditPageId;
@@ -156,7 +204,10 @@
         if (page is not null)
             EditPage(page);
         else
+        {
             currentPage = new ContentPage();
+            textCards = [new EditableTextCard()];
+        }
     }
 
     private async Task SavePage()
@@ -167,6 +218,7 @@
             return;
         }
 
+        currentPage.Content = SerializeTextCards();
         await ContentPageService.UpdateContentAsync(currentPage);
         SetMessage("Seiteninhalt wurde gespeichert.", "alert-success");
         await LoadData();
@@ -187,6 +239,141 @@
             MapAddress = page.MapAddress,
             MapEmbedUrl = page.MapEmbedUrl
         };
+
+        textCards = ParseTextCards(page.Content);
+    }
+
+    private void AddTextCard()
+    {
+        textCards.Add(new EditableTextCard());
+    }
+
+    private void RemoveTextCard(int index)
+    {
+        if (textCards.Count <= 1 || index < 0 || index >= textCards.Count)
+            return;
+
+        textCards.RemoveAt(index);
+    }
+
+    private void MoveTextCard(int index, int direction)
+    {
+        var newIndex = index + direction;
+
+        if (index < 0 || index >= textCards.Count || newIndex < 0 || newIndex >= textCards.Count)
+            return;
+
+        (textCards[index], textCards[newIndex]) = (textCards[newIndex], textCards[index]);
+    }
+
+    private string SerializeTextCards()
+    {
+        return string.Join(
+            $"{Environment.NewLine}{Environment.NewLine}",
+            textCards
+                .Where(card => !string.IsNullOrWhiteSpace(card.Heading) || !string.IsNullOrWhiteSpace(card.Text))
+                .Select(card =>
+                {
+                    var heading = card.Heading?.Trim() ?? "";
+                    var text = card.Text?.Trim() ?? "";
+
+                    return string.IsNullOrWhiteSpace(heading)
+                        ? text
+                        : $"### {heading}{Environment.NewLine}{text}";
+                }));
+    }
+
+    private static List<EditableTextCard> ParseTextCards(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return [new EditableTextCard()];
+
+        var lines = content.Replace("\r\n", "\n").Split('\n');
+
+        if (lines.Any(line => line.TrimStart().StartsWith("### ")))
+            return ParseStructuredTextCards(lines);
+
+        return ParseLegacyTextCards(lines);
+    }
+
+    private static List<EditableTextCard> ParseStructuredTextCards(IEnumerable<string> lines)
+    {
+        var cards = new List<EditableTextCard>();
+        var heading = "";
+        var textLines = new List<string>();
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+
+            if (line.TrimStart().StartsWith("### "))
+            {
+                AddParsedCard(cards, heading, textLines);
+                heading = line.Trim()[4..].Trim();
+                textLines.Clear();
+                continue;
+            }
+
+            textLines.Add(line);
+        }
+
+        AddParsedCard(cards, heading, textLines);
+        return cards.Count == 0 ? [new EditableTextCard()] : cards;
+    }
+
+    private static List<EditableTextCard> ParseLegacyTextCards(IEnumerable<string> rawLines)
+    {
+        var lines = rawLines
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToList();
+
+        var cards = new List<EditableTextCard>();
+        var textBuffer = new List<string>();
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var line = lines[index];
+
+            if (line.EndsWith('?') && index + 1 < lines.Count)
+            {
+                AddParsedCard(cards, "", textBuffer);
+                cards.Add(new EditableTextCard { Heading = line, Text = lines[index + 1] });
+                index++;
+                continue;
+            }
+
+            var questionMarkIndex = line.IndexOf('?');
+            if (questionMarkIndex >= 0 && questionMarkIndex < line.Length - 1)
+            {
+                AddParsedCard(cards, "", textBuffer);
+                cards.Add(new EditableTextCard
+                {
+                    Heading = line[..(questionMarkIndex + 1)].Trim(),
+                    Text = line[(questionMarkIndex + 1)..].Trim()
+                });
+                continue;
+            }
+
+            textBuffer.Add(line);
+        }
+
+        AddParsedCard(cards, "", textBuffer);
+        return cards.Count == 0 ? [new EditableTextCard()] : cards;
+    }
+
+    private static void AddParsedCard(List<EditableTextCard> cards, string heading, List<string> textLines)
+    {
+        var text = string.Join(Environment.NewLine, textLines).Trim();
+
+        if (string.IsNullOrWhiteSpace(heading) && string.IsNullOrWhiteSpace(text))
+            return;
+
+        cards.Add(new EditableTextCard
+        {
+            Heading = heading.Trim(),
+            Text = text
+        });
     }
 
     private async Task AssignGroup()
@@ -241,5 +428,11 @@
             "datenschutz" => "/datenschutz",
             _ => $"/seite/{page.Slug}"
         };
+    }
+
+    private sealed class EditableTextCard
+    {
+        public string Heading { get; set; } = "";
+        public string Text { get; set; } = "";
     }
 }

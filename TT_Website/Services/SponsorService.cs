@@ -7,27 +7,35 @@ namespace TT_Website.Services;
 public class SponsorService
 {
     private readonly AppDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public SponsorService(AppDbContext context)
+    public SponsorService(AppDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
     public async Task<List<Sponsor>> GetAllAsync()
     {
-        return await _context.Sponsors
+        var sponsors = await _context.Sponsors
             .AsNoTracking()
             .OrderBy(x => x.Name)
             .ToListAsync();
+
+        ClearMissingLogoPaths(sponsors);
+        return sponsors;
     }
 
     public async Task<List<Sponsor>> GetActiveAsync()
     {
-        return await _context.Sponsors
+        var sponsors = await _context.Sponsors
             .AsNoTracking()
             .Where(x => x.IsActive)
             .OrderBy(x => x.Name)
             .ToListAsync();
+
+        ClearMissingLogoPaths(sponsors);
+        return sponsors;
     }
 
     public async Task AddAsync(Sponsor sponsor)
@@ -61,5 +69,16 @@ public class SponsorService
         _context.Sponsors.Remove(sponsor);
 
         await _context.SaveChangesAsync();
+    }
+
+    private void ClearMissingLogoPaths(IEnumerable<Sponsor> sponsors)
+    {
+        foreach (var sponsor in sponsors)
+        {
+            if (WebFilePathValidator.GetExistingPath(_environment, sponsor.LogoPath) is null)
+            {
+                sponsor.LogoPath = null;
+            }
+        }
     }
 }

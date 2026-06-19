@@ -18,8 +18,8 @@ public class SiteSeedService
         await SeedPagesAsync();
         await SeedTeamsAsync();
         await SeedSettingsAsync(configuration);
-        await SeedSponsorsAsync();
-        await SeedSampleGalleryGroupsAsync();
+        await SeedSponsorsAsync(environment);
+        await CleanupSeededGalleryAssignmentsAsync();
     }
 
     private async Task SeedPagesAsync()
@@ -247,6 +247,7 @@ public class SiteSeedService
         if (existing is not null)
         {
             var seedContent = GetSeedContent(slug);
+            var editableCardContent = GetEditableCardSeedContent(slug);
 
             existing.Title = title;
             existing.ParentId = parentId;
@@ -258,6 +259,12 @@ public class SiteSeedService
 
             if (ShouldReplacePlaceholder(existing.Content) && seedContent is not null)
                 existing.Content = seedContent.Value.Content;
+
+            if (editableCardContent is not null
+                && (!ContainsStructuredCards(existing.Content) || ContainsMojibake(existing.Content)))
+            {
+                existing.Content = editableCardContent;
+            }
 
             if (ShouldReplaceSummary(existing.Summary))
                 existing.Summary = seedContent?.Summary;
@@ -281,6 +288,7 @@ public class SiteSeedService
         }
 
         var newSeedContent = GetSeedContent(slug);
+        var newEditableCardContent = GetEditableCardSeedContent(slug);
 
         _context.ContentPages.Add(new ContentPage
         {
@@ -293,7 +301,7 @@ public class SiteSeedService
             ExternalUrl = externalUrl,
             ShowMap = slug == "vereinslokal",
             MapAddress = slug == "vereinslokal" ? "Niedermenach 3, 94327 Bogen" : null,
-            Content = newSeedContent?.Content ?? "",
+            Content = newEditableCardContent ?? newSeedContent?.Content ?? "",
             Summary = newSeedContent?.Summary
         });
     }
@@ -316,6 +324,12 @@ public class SiteSeedService
             (value.Contains('Ã') || value.Contains('Â'));
     }
 
+    private static bool ContainsStructuredCards(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) &&
+            value.Contains("### ", StringComparison.Ordinal);
+    }
+
     private static bool IsSpecialPublicPage(string slug)
     {
         return slug is
@@ -329,6 +343,54 @@ public class SiteSeedService
             "weihnachtsmarkt" or
             "impressum" or
             "datenschutz";
+    }
+
+    private static string? GetEditableCardSeedContent(string slug)
+    {
+        return slug switch
+        {
+            "ueber-uns" =>
+                """
+                ### Wer sind wir?
+                Der Verein wurde als Abteilung des TSV 1883 Bogen Hauptverein im Jahr 1959 gegründet und im Jahr 2014 als eigenständiger eingetragener Verein verselbständigt.
+
+                ### Wie groß ist der Verein?
+                Die Mitgliederanzahl liegt insgesamt bei 170, davon 64 aktive Mitglieder. Der Rest sind Fördermitglieder.
+
+                ### Wie spielen wir im Verband?
+                In den Verbandsspielen wurden bisher maximal 11 Mannschaften gemeldet, davon eine Damen-, vier Jugend- und sechs Herrenmannschaften.
+
+                ### Welche sportlichen Erfolge gab es?
+                Aus sportlicher Sicht waren die höchsten Ligen der Jugendmannschaft die Verbandsliga Südost (Bayernliga), bei Damen und Herren die Bezirksoberliga.
+
+                ### Was bedeutet Jugendarbeit für uns?
+                Die Jugendarbeit ist ein wichtiger Teil der Vereinsarbeit. Im Schnitt sind 25 aktive Nachwuchsspielerinnen und Nachwuchsspieler im Training und werden von sechs ausgebildeten Übungsleitern mit C-Trainerschein betreut.
+
+                ### Wo und wann trainieren wir?
+                Trainingstage sind Dienstag und Freitag. Das Jugendtraining beginnt jeweils ab 17:30 Uhr. In der Zweifachturnhalle der Herzog-Ludwig-Mittelschule Bogen stehen 10 blaue Tischtennisplatten zur Verfügung.
+
+                ### Was gehört zum Vereinsleben?
+                Veranstaltungen wie Radausflüge, Grillfeste, Weihnachtsmarkt Bogenberg, Jahresabschlussfeier, Jugendbildungsmaßnahmen, Zeltlager, Tischtennis-Camps und Skifahrten runden den sportlichen Bereich ab.
+
+                ### Welche Aktionen bieten wir an?
+                Aktionen wie Breitensportpreise, Quantensprung, Das grüne Band, DOSB Sterne des Sports, Kooperation Schule und Verein, Ferienfreizeit Stadt Bogen, Sportabzeichen und Sport nach 1 werden regelmäßig angeboten oder durchgeführt.
+                """,
+            "mitgliedschaft" =>
+                """
+                ### Aktive Mitglieder
+                Aktive Vereinsmitglieder bringen ihre Arbeitskraft und Ideen ein, gestalten die Vereinsarbeit mit und nehmen in der Regel an Veranstaltungen, Wettbewerben, Turnieren und am Training teil. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen.
+
+                ### Passive Mitglieder
+                Passive Mitglieder nehmen an keinen Verbandswettbewerben teil, können jedoch am Training teilnehmen. Sie können mit Stimmrecht an der Mitgliederversammlung teilnehmen und den Verein unterstützen.
+
+                ### Ehrenmitglieder
+                Mitglieder, die sich um den Verein oder den Sport im Allgemeinen sehr verdient gemacht haben, können durch Beschluss des Vorstandes zum Ehrenmitglied ernannt werden.
+
+                ### Fördermitglieder
+                Fördernde Mitglieder beteiligen sich nicht aktiv innerhalb des Vereins, unterstützen jedoch die Ziele und den Zweck des Vereins durch regelmäßige oder unregelmäßige Beiträge, Sachleistungen oder Dienstleistungen.
+                """,
+            _ => null
+        };
     }
 
     private static (string Summary, string Content)? GetSeedContent(string slug)
@@ -552,7 +614,7 @@ public class SiteSeedService
         }
     }
 
-    private async Task SeedSponsorsAsync()
+    private async Task SeedSponsorsAsync(IWebHostEnvironment environment)
     {
         var sponsors = new (string Name, string LogoPath, string? WebsiteUrl)[]
         {
@@ -567,6 +629,7 @@ public class SiteSeedService
 
         foreach (var seed in sponsors)
         {
+            var seededLogoPath = WebFilePathValidator.GetExistingPath(environment, seed.LogoPath);
             var sponsor = await _context.Sponsors
                 .FirstOrDefaultAsync(x => x.Name == seed.Name);
 
@@ -575,7 +638,7 @@ public class SiteSeedService
                 _context.Sponsors.Add(new Sponsor
                 {
                     Name = seed.Name,
-                    LogoPath = seed.LogoPath,
+                    LogoPath = seededLogoPath,
                     WebsiteUrl = seed.WebsiteUrl,
                     IsActive = true
                 });
@@ -583,7 +646,16 @@ public class SiteSeedService
                 continue;
             }
 
-            sponsor.LogoPath = seed.LogoPath;
+            if (seededLogoPath is not null)
+            {
+                sponsor.LogoPath = seededLogoPath;
+            }
+            else if (!string.IsNullOrWhiteSpace(sponsor.LogoPath)
+                && WebFilePathValidator.GetExistingPath(environment, sponsor.LogoPath) is null)
+            {
+                sponsor.LogoPath = null;
+            }
+
             sponsor.WebsiteUrl = seed.WebsiteUrl ?? sponsor.WebsiteUrl;
             sponsor.IsActive = true;
         }
@@ -591,83 +663,33 @@ public class SiteSeedService
         await _context.SaveChangesAsync();
     }
 
-    private async Task SeedSampleGalleryGroupsAsync()
+    private async Task CleanupSeededGalleryAssignmentsAsync()
     {
-        var images = await _context.GalleryImages.ToListAsync();
+        var seededGroupNames = new[] { "Vereinsleben", "Jugendarbeit", "Mannschaften" };
+        var seededGroups = await _context.GalleryGroups
+            .Include(x => x.Images)
+            .Where(x => seededGroupNames.Contains(x.Name))
+            .ToListAsync();
 
-        if (images.Count == 0)
+        if (seededGroups.Count == 0)
             return;
 
-        var groups = new[]
-        {
-            ("Vereinsleben", "Bilder aus Training, Aktionen und Vereinsleben.", "startseite"),
-            ("Jugendarbeit", "Impressionen aus Jugendtraining und Nachwuchsarbeit.", "jugendarbeit"),
-            ("Mannschaften", "Beispielbilder für Mannschaften und Spielbetrieb.", "mannschaften-cms")
-        };
+        var groupIds = seededGroups.Select(x => x.Id).ToList();
+        var contentAssignments = await _context.ContentPageGalleryGroups
+            .Where(x => groupIds.Contains(x.GalleryGroupId))
+            .ToListAsync();
+        var pageAssignments = await _context.PageGalleryAssignments
+            .Where(x => groupIds.Contains(x.GalleryGroupId))
+            .ToListAsync();
 
-        foreach (var seed in groups)
-        {
-            var group = await _context.GalleryGroups
-                .Include(x => x.Images)
-                .FirstOrDefaultAsync(x => x.Name == seed.Item1);
+        _context.ContentPageGalleryGroups.RemoveRange(contentAssignments);
+        _context.PageGalleryAssignments.RemoveRange(pageAssignments);
 
-            if (group is null)
-            {
-                group = new GalleryGroup
-                {
-                    Name = seed.Item1,
-                    Description = seed.Item2
-                };
+        var emptySeededGroups = seededGroups
+            .Where(x => x.Images.Count == 0)
+            .ToList();
 
-                _context.GalleryGroups.Add(group);
-                await _context.SaveChangesAsync();
-            }
-
-            if (group.Images.Count == 0)
-            {
-                var order = 1;
-                foreach (var image in images.Take(6))
-                {
-                    _context.GalleryGroupImages.Add(new GalleryGroupImage
-                    {
-                        GalleryGroupId = group.Id,
-                        GalleryImageId = image.Id,
-                        SortOrder = order++
-                    });
-                }
-            }
-
-            var page = await _context.ContentPages.FirstOrDefaultAsync(x => x.Slug == seed.Item3);
-            if (page is not null)
-            {
-                var assigned = await _context.ContentPageGalleryGroups
-                    .AnyAsync(x => x.ContentPageId == page.Id && x.GalleryGroupId == group.Id);
-
-                if (!assigned)
-                {
-                    _context.ContentPageGalleryGroups.Add(new ContentPageGalleryGroup
-                    {
-                        ContentPageId = page.Id,
-                        GalleryGroupId = group.Id,
-                        SortOrder = 1
-                    });
-                }
-            }
-
-            if (seed.Item3 == "startseite" &&
-                !await _context.PageGalleryAssignments.AnyAsync(x => x.PageKey == "home"))
-            {
-                _context.PageGalleryAssignments.Add(new PageGalleryAssignment
-                {
-                    PageKey = "home",
-                    PageTitle = "Startseite",
-                    GalleryGroupId = group.Id,
-                    SlideshowEnabled = true,
-                    IntervalSeconds = 3
-                });
-            }
-        }
-
+        _context.GalleryGroups.RemoveRange(emptySeededGroups);
         await _context.SaveChangesAsync();
     }
 

@@ -25,6 +25,7 @@ html,
 body {
     min-height: 100%;
     margin: 0;
+    width: 100%;
     overflow-x: hidden;
     background: var(--soft);
     color: var(--text);
@@ -48,10 +49,12 @@ a:hover {
 
 .site-shell {
     min-height: 100vh;
+    width: 100%;
+    overflow-x: clip;
 }
 
 .content {
-    width: min(1180px, calc(100vw - 2rem));
+    width: min(1180px, calc(100% - 2rem));
     margin: 0 auto;
     padding: 2rem 0 4rem;
 }
@@ -62,9 +65,9 @@ a:hover {
     z-index: 20;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: .85rem;
     min-height: 72px;
-    padding: 0 2rem;
+    padding: 0 1.25rem;
     background: rgba(7, 26, 51, .96);
     box-shadow: 0 12px 28px rgba(0, 0, 0, .16);
 }
@@ -73,9 +76,14 @@ a:hover {
     display: inline-flex;
     align-items: center;
     gap: .75rem;
-    min-width: 250px;
+    flex: 0 0 auto;
+    min-width: 0;
     color: #fff;
     font-weight: 800;
+}
+
+.site-brand strong {
+    white-space: nowrap;
 }
 
 .site-brand span {
@@ -101,6 +109,8 @@ a:hover {
     align-items: stretch;
     gap: .15rem;
     flex: 1;
+    min-width: 0;
+    justify-content: center;
 }
 
 .site-nav-item {
@@ -125,8 +135,9 @@ a:hover {
     display: inline-flex;
     align-items: center;
     min-height: 72px;
-    padding: 0 .75rem;
+    padding: 0 .55rem;
     border-bottom: 3px solid transparent;
+    white-space: nowrap;
 }
 
 .site-nav-link.active,
@@ -168,7 +179,8 @@ a:hover {
 .site-actions {
     display: flex;
     align-items: center;
-    gap: .65rem;
+    gap: .45rem;
+    flex: 0 0 auto;
 }
 
 .site-actions form {
@@ -182,7 +194,8 @@ a:hover {
     min-height: 40px;
     align-items: center;
     border-radius: 8px;
-    padding: 0 .9rem;
+    padding: 0 .75rem;
+    white-space: nowrap;
 }
 
 .site-join-link {
@@ -333,6 +346,8 @@ h4 {
 
 .content-card {
     margin-bottom: 1rem;
+    max-width: 100%;
+    min-width: 0;
     padding: clamp(1rem, 2vw, 1.5rem);
 }
 
@@ -382,14 +397,54 @@ h4 {
 }
 
 .table {
+    width: 100%;
     overflow: hidden;
     border-radius: 8px;
     background: #fff;
 }
 
+.table-responsive {
+    max-width: 100%;
+    min-width: 0;
+}
+
 .table thead th {
     background: var(--blue-900);
     color: #fff;
+}
+
+.data-table-card {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.data-table-card .card-body {
+    min-width: 0;
+}
+
+.data-table-card .table {
+    margin-bottom: 0;
+}
+
+.data-table-card th,
+.data-table-card td {
+    max-width: 24ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+}
+
+.ranking-card .data-table-card th,
+.ranking-card .data-table-card td {
+    padding: .55rem .5rem;
+}
+
+.ranking-card .data-table-card th:first-child,
+.ranking-card .data-table-card td:first-child {
+    width: 4.5rem;
+    max-width: 4.5rem;
+    text-align: center;
 }
 
 .form-control,
@@ -981,6 +1036,11 @@ button:not(.btn):hover {
     object-fit: contain;
 }
 
+.preview-sponsor-logo strong {
+    color: var(--blue-950);
+    text-align: center;
+}
+
 .news-feature-grid {
     display: grid;
     gap: 1.25rem;
@@ -1512,6 +1572,39 @@ button:not(.btn):hover {
     max-width: 360px;
 }
 
+.admin-section-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.admin-text-card-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.admin-text-card-editor {
+    display: grid;
+    gap: .65rem;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--soft);
+}
+
+.admin-text-card-editor__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.textarea-md {
+    min-height: 150px;
+}
+
 .admin-sponsor-card img {
     width: 100%;
     max-height: 135px;
@@ -1524,11 +1617,71 @@ button:not(.btn):hover {
     display: none;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1640px) {
     .site-header {
-        align-items: flex-start;
-        flex-wrap: wrap;
+        gap: .5rem;
+        min-height: 64px;
+        padding: 0 .85rem;
+    }
+
+    .site-brand {
+        gap: .5rem;
+    }
+
+    .site-brand img {
+        width: 44px;
+        height: 44px;
+    }
+
+    .site-brand strong,
+    .site-nav-link,
+    .site-admin-link,
+    .site-join-link,
+    .site-admin-button {
+        font-size: .84rem;
+    }
+
+    .site-nav {
+        gap: .05rem;
+    }
+
+    .site-nav-link {
+        min-height: 64px;
+        padding: 0 .36rem;
+    }
+
+    .site-nav-dropdown {
+        top: 64px;
+        min-width: 220px;
+    }
+
+    .site-actions {
+        gap: .25rem;
+    }
+
+    .site-join-link,
+    .site-admin-link,
+    .site-admin-button {
+        min-height: 36px;
+        padding: 0 .5rem;
+    }
+}
+
+@media (max-width: 1280px) {
+    .site-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
         padding: .75rem 1rem;
+    }
+
+    .site-brand {
+        min-width: 0;
+    }
+
+    .site-brand strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .site-nav-button {
@@ -1551,12 +1704,24 @@ button:not(.btn):hover {
     .site-nav,
     .site-actions {
         display: none;
+        grid-column: 1 / -1;
         width: 100%;
     }
 
     .site-nav-toggle:checked ~ .site-nav,
     .site-nav-toggle:checked ~ .site-actions {
         display: grid;
+    }
+
+    .site-actions {
+        gap: .6rem;
+        justify-items: stretch;
+    }
+
+    .site-join-link,
+    .site-admin-link,
+    .site-admin-button {
+        justify-content: center;
     }
 
     .site-nav-link {
@@ -1577,6 +1742,49 @@ button:not(.btn):hover {
 }
 
 @media (max-width: 780px) {
+    .content {
+        width: min(100% - 1rem, 1180px);
+        padding: 1rem 0 2.5rem;
+    }
+
+    .content-card {
+        margin-bottom: .85rem;
+        padding: .85rem;
+    }
+
+    .page-hero,
+    .preview-hero,
+    .event-page-hero {
+        margin: -1rem -.5rem 1rem;
+        padding: 2rem .85rem;
+    }
+
+    .page-hero.compact {
+        min-height: 210px;
+    }
+
+    .preview-hero {
+        min-height: 420px;
+    }
+
+    .site-header {
+        min-height: 64px;
+        padding: .55rem .7rem;
+    }
+
+    .site-brand {
+        gap: .55rem;
+    }
+
+    .site-brand img {
+        width: 44px;
+        height: 44px;
+    }
+
+    .site-brand strong {
+        max-width: 64vw;
+    }
+
     .form-row,
     .admin-grid,
     .preview-quicklinks,
@@ -1589,6 +1797,76 @@ button:not(.btn):hover {
     .section-heading,
     .preview-section-header {
         display: block;
+    }
+
+    .section-heading h2 {
+        font-size: 1.35rem;
+    }
+
+    .data-table-card {
+        border: 0;
+        box-shadow: none;
+    }
+
+    .data-table-card .card-body {
+        padding: 0;
+    }
+
+    .data-table-card .table-responsive {
+        overflow: visible;
+    }
+
+    .data-table-card table,
+    .data-table-card thead,
+    .data-table-card tbody,
+    .data-table-card tr,
+    .data-table-card th,
+    .data-table-card td {
+        display: block;
+        width: 100%;
+    }
+
+    .data-table-card thead {
+        display: none;
+    }
+
+    .data-table-card tbody {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .data-table-card tr {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 8px 22px rgba(7, 26, 51, .06);
+    }
+
+    .data-table-card td {
+        display: grid;
+        grid-template-columns: minmax(7rem, .42fr) minmax(0, 1fr);
+        gap: .75rem;
+        max-width: none;
+        padding: .55rem .7rem;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+    }
+
+    .data-table-card td:last-child {
+        border-bottom: 0;
+    }
+
+    .data-table-card td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-weight: 800;
+    }
+
+    .ranking-card .data-table-card td:first-child {
+        width: 100%;
+        max-width: none;
+        text-align: left;
     }
 
     .download-card {
@@ -1644,6 +1922,8 @@ button:not(.btn):hover {
 
     .admin-page-header,
     .admin-gallery-group__header,
+    .admin-section-toolbar,
+    .admin-text-card-editor__header,
     .admin-inline-form,
     .admin-list-item {
         display: grid;
@@ -1656,5 +1936,40 @@ button:not(.btn):hover {
 
     .admin-inline-form .form-select {
         max-width: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .content {
+        width: min(100% - .75rem, 1180px);
+    }
+
+    .content-card {
+        padding: .75rem;
+    }
+
+    .btn,
+    .site-join-link,
+    .site-admin-link,
+    .site-admin-button {
+        width: 100%;
+    }
+
+    .data-table-card td {
+        grid-template-columns: 1fr;
+        gap: .2rem;
+    }
+
+    .preview-sponsor-logo,
+    .sponsor-logo-tile {
+        width: min(240px, calc(100vw - 2rem));
+        height: 125px;
+    }
+
+    .gallery-grid,
+    .download-grid,
+    .teams-grid,
+    .contact-card-grid {
+        grid-template-columns: 1fr;
     }
 }

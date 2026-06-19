@@ -4,6 +4,7 @@
 @using TT_Website.Services
 
 @inject ContentPageService ContentPageService
+@inject IWebHostEnvironment Environment
 
 @if (contentPage is null)
 {
@@ -20,7 +21,7 @@ else
         }
     </section>
 
-    @if (IsVereinslokal)
+    @if (HasVereinslokalFeatureImages)
     {
         <section class="content-card venue-feature">
             <img class="venue-logo-banner"
@@ -84,18 +85,33 @@ else
 
     private ContentPage? contentPage;
     private bool IsVereinslokal => string.Equals(contentPage?.Slug, "vereinslokal", StringComparison.OrdinalIgnoreCase);
-    private bool IsMitgliedschaft => string.Equals(contentPage?.Slug, "mitgliedschaft", StringComparison.OrdinalIgnoreCase);
-    private bool IsUeberUns => string.Equals(contentPage?.Slug, "ueber-uns", StringComparison.OrdinalIgnoreCase);
-
+    private bool HasVereinslokalFeatureImages => IsVereinslokal
+        && StaticWebFileExists("/uploads/vereinslokal/restaurant-bei-anna-logo.jpg")
+        && StaticWebFileExists("/uploads/vereinslokal/restaurant-bei-anna-team.jpg");
     protected override async Task OnParametersSetAsync()
     {
         contentPage = await ContentPageService.GetBySlugAsync(Slug);
+    }
+
+    private bool StaticWebFileExists(string webPath)
+    {
+        var webRoot = Path.GetFullPath(Environment.WebRootPath);
+        var relativePath = webPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
+
+        return fullPath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase)
+            && File.Exists(fullPath);
     }
 
     private static IEnumerable<CmsTextSection> GetContentSections(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return [];
+
+        var rawLines = content.Replace("\r\n", "\n").Split('\n');
+
+        if (rawLines.Any(line => line.TrimStart().StartsWith("### ")))
+            return GetStructuredContentSections(rawLines);
 
         var lines = content
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -134,14 +150,33 @@ else
         return sections;
     }
 
+    private static IEnumerable<CmsTextSection> GetStructuredContentSections(IEnumerable<string> lines)
+    {
+        var sections = new List<CmsTextSection>();
+        var heading = "";
+        var textBuffer = new List<string>();
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+
+            if (line.TrimStart().StartsWith("### "))
+            {
+                AddStructuredTextSection(sections, heading, textBuffer);
+                heading = line.Trim()[4..].Trim();
+                textBuffer.Clear();
+                continue;
+            }
+
+            textBuffer.Add(line);
+        }
+
+        AddStructuredTextSection(sections, heading, textBuffer);
+        return sections;
+    }
+
     private IEnumerable<CmsTextSection> GetRenderedSections(ContentPage currentPage)
     {
-        if (IsMitgliedschaft)
-            return GetMembershipSections();
-
-        if (IsUeberUns)
-            return GetAboutSections();
-
         return GetContentSections(currentPage.Content);
     }
 
@@ -201,6 +236,17 @@ else
             return;
 
         sections.Add(new CmsTextSection(null, string.Join("\n", textBuffer)));
+        textBuffer.Clear();
+    }
+
+    private static void AddStructuredTextSection(List<CmsTextSection> sections, string heading, List<string> textBuffer)
+    {
+        var text = string.Join("\n", textBuffer).Trim();
+
+        if (string.IsNullOrWhiteSpace(heading) && string.IsNullOrWhiteSpace(text))
+            return;
+
+        sections.Add(new CmsTextSection(string.IsNullOrWhiteSpace(heading) ? null : heading, text));
         textBuffer.Clear();
     }
 

@@ -17,12 +17,25 @@
 	  </PackageReference>
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.8" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.8" />
+	  <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <Folder Include="wwwroot\uploads\documents\" />
 	  <Folder Include="wwwroot\uploads\news\" />
 	  <Folder Include="wwwroot\uploads\sponsors\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+	  <Content Update="appsettings.Development.example.json" CopyToPublishDirectory="Never" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="artifacts\**" />
+	  <Content Remove="artifacts\**" />
+	  <EmbeddedResource Remove="artifacts\**" />
+	  <None Remove="artifacts\**" />
 	</ItemGroup>
 
 </Project>
