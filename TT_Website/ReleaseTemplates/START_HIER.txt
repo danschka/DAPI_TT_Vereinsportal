@@ -1,0 +1,18 @@
+TT-Vereinsportal - lokaler Mitarbeiter-Release
+
+ERSTES EINRICHTEN
+1. Im Repository Mitarbeiter-Release-erstellen.bat doppelt anklicken.
+2. Die eigene tt_website.db in den erzeugten Release-Ordner kopieren:
+   artifacts\TT_Website_Mitarbeiter_win-x64
+3. Dort Website_starten.bat doppelt anklicken.
+
+NACH EINEM GIT PULL
+1. Laufende Website beenden.
+2. Mitarbeiter-Release-erstellen.bat erneut ausfuehren.
+3. Website_starten.bat ausfuehren.
+
+Die vorhandene tt_website.db wird beim Aktualisieren nicht geloescht.
+Beim Start werden neue Datenbankmigrationen automatisch angewendet.
+
+Falls eigene Bilder oder Dokumente verwendet werden, gehoert dazu auch:
+wwwroot\uploads
