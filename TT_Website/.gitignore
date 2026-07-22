@@ -7,10 +7,18 @@ obj/
 *.user
 *.suo
 
+# Rechnerbezogene Konfiguration und lokale Laufzeitdaten.
+# Diese Dateien bleiben bei Pulls erhalten und werden nie versioniert.
 appsettings.Development.json
 
-*.db
-*.db-shm
-*.db-wal
+**/*.db
+**/*.db-shm
+**/*.db-wal
 
 artifacts/
+
+# Von Mitarbeitern hochgeladene Bilder und Dokumente bleiben lokal.
+# Nur der Platzhalter für die leere Ordnerstruktur wird versioniert.
+wwwroot/uploads/**
+!wwwroot/uploads/
+!wwwroot/uploads/.gitkeep
