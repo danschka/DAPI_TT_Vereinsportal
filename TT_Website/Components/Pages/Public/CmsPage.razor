@@ -12,13 +12,19 @@
 }
 else
 {
-    <section class="page-hero compact">
-        <p class="eyebrow">TSV 1883 Bogen Tischtennis</p>
-        <h1>@contentPage.Title</h1>
-        @if (!string.IsNullOrWhiteSpace(contentPage.Summary))
-        {
-            <p>@contentPage.Summary</p>
-        }
+    <section class="page-hero compact cms-page-hero">
+        <PageSlideshow ContentPageSlug="@contentPage.Slug"
+                       CssClass="cms-page-hero-slideshow"
+                       ShowOverlay="true" />
+
+        <div class="cms-page-hero__content">
+            <p class="eyebrow">TSV 1883 Bogen Tischtennis</p>
+            <h1>@contentPage.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(contentPage.Summary))
+            {
+                <p>@contentPage.Summary</p>
+            }
+        </div>
     </section>
 
     @if (HasVereinslokalFeatureImages)
@@ -40,16 +46,29 @@ else
         </section>
     }
 
-    <section class="cms-section-list">
-        @foreach (var section in GetRenderedSections(contentPage))
+    <section class="cms-section-list cms-layout-@ContentPageService.NormalizeLayoutStyle(contentPage.LayoutStyle)">
+        @foreach (var section in CmsContentParser.Parse(contentPage.Content))
         {
-            <article class="content-card cms-text-card">
-                @if (!string.IsNullOrWhiteSpace(section.Heading))
-                {
-                    <p class="cms-text-card__question">@section.Heading</p>
-                }
-                <p>@section.Text</p>
-            </article>
+            @if (section.IsImage)
+            {
+                <figure class="content-card cms-image-card">
+                    <img src="@section.ImagePath" alt="@section.Text" />
+                    @if (!string.IsNullOrWhiteSpace(section.Text))
+                    {
+                        <figcaption>@section.Text</figcaption>
+                    }
+                </figure>
+            }
+            else
+            {
+                <article class="content-card cms-text-card">
+                    @if (!string.IsNullOrWhiteSpace(section.Heading))
+                    {
+                        <p class="cms-text-card__question">@section.Heading</p>
+                    }
+                    <p>@section.Text</p>
+                </article>
+            }
         }
     </section>
 

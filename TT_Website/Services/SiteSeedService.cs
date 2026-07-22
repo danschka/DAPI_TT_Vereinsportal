@@ -39,10 +39,6 @@ public class SiteSeedService
             ("Schnuppermobil", "schnuppermobil", "aktionen", 40, null),
             ("Trikot Tag BLSV", "trikot-tag-blsv", "aktionen", 50, null),
             ("Auszeichnungen", "auszeichnungen", null, 40, null),
-            ("Das grüne Band", "das-gruene-band", "auszeichnungen", 10, null),
-            ("Quantensprung", "quantensprung", "auszeichnungen", 20, null),
-            ("Sterne des Sports", "sterne-des-sports", "auszeichnungen", 30, null),
-            ("Breitensportpreis", "breitensportpreis", "auszeichnungen", 40, null),
             ("Mitgliedschaft", "mitgliedschaft", null, 50, null),
             ("Mitgliederentwicklung", "mitgliederentwicklung", "mitgliedschaft", 10, null),
             ("Aufnahmeerklärung", "aufnahmeerklaerung", "mitgliedschaft", 20, null),
@@ -67,10 +63,19 @@ public class SiteSeedService
             ("Galerie", "galerie", null, 130, null),
             ("Links", "links", null, 140, null),
             ("Webshop", "webshop", null, 145, "https://de.butterfly.tt/"),
-            ("Weihnachtsmarkt", "weihnachtsmarkt", null, 150, null),
             ("Impressum", "impressum", null, 160, null),
             ("Datenschutzerklärung", "datenschutz", null, 170, null)
         };
+
+        var removedChristmasMarketPages = await _context.ContentPages
+            .Where(x => x.Slug == "weihnachtsmarkt")
+            .ToListAsync();
+        _context.ContentPages.RemoveRange(removedChristmasMarketPages);
+
+        var removedChristmasMarketAssignments = await _context.PageGalleryAssignments
+            .Where(x => x.PageKey == "weihnachtsmarkt")
+            .ToListAsync();
+        _context.PageGalleryAssignments.RemoveRange(removedChristmasMarketAssignments);
 
         var validSlugs = pages.Select(x => x.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var outdatedPages = await _context.ContentPages
@@ -104,7 +109,6 @@ public class SiteSeedService
             "sponsoren",
             "galerie",
             "links",
-            "weihnachtsmarkt",
             "impressum",
             "datenschutz"
         };
@@ -340,7 +344,6 @@ public class SiteSeedService
             "galerie" or
             "links" or
             "webshop" or
-            "weihnachtsmarkt" or
             "impressum" or
             "datenschutz";
     }
@@ -542,15 +545,6 @@ public class SiteSeedService
 
                 Wo gibt es Vereinskleidung?
                 Vereinskleidung und Zubehör findest du in unserem Webshop.
-                """),
-            "weihnachtsmarkt" => (
-                "Eindrücke und Bilder rund um den Weihnachtsmarkt des Vereins.",
-                """
-                Was macht den Weihnachtsmarkt besonders?
-                Der Weihnachtsmarkt ist ein fester Treffpunkt im Vereinsjahr. Mitglieder, Familien und Gäste kommen zusammen, helfen mit und erleben den Verein auch abseits der Sporthalle.
-
-                Was gibt es zu sehen?
-                Hier sammeln wir Eindrücke, Bilder und Erinnerungen rund um den Weihnachtsmarkt und die gemeinsamen Aktionen des TSV 1883 Bogen Tischtennis.
                 """),
             "impressum" => (
                 "Rechtliche Angaben zum TSV 1883 Bogen Tischtennis.",

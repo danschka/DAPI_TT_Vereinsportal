@@ -87,6 +87,7 @@ public class ContentPageService
             existing.Slug = page.Slug;
             existing.Summary = page.Summary?.Trim();
             existing.Content = page.Content.Trim();
+            existing.LayoutStyle = NormalizeLayoutStyle(page.LayoutStyle);
             existing.ExternalUrl = page.ExternalUrl?.Trim();
             existing.SortOrder = page.SortOrder;
             existing.IsActive = page.IsActive;
@@ -111,6 +112,7 @@ public class ContentPageService
         existing.Title = page.Title.Trim();
         existing.Summary = page.Summary?.Trim();
         existing.Content = page.Content?.Trim() ?? "";
+        existing.LayoutStyle = NormalizeLayoutStyle(page.LayoutStyle);
         existing.ExternalUrl = page.ExternalUrl?.Trim();
 
         if (existing.Slug == "vereinslokal")
@@ -183,6 +185,13 @@ public class ContentPageService
             .Replace("ü", "ue")
             .Replace("ß", "ss")
             .Replace(" ", "-");
+    }
+
+    public static string NormalizeLayoutStyle(string? value)
+    {
+        return value is "single" or "image-left" or "image-right" or "images-bottom"
+            ? value
+            : "cards";
     }
 
     private void RemoveMissingPageGalleryImages(ContentPage? page)

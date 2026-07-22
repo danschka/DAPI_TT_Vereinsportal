@@ -67,6 +67,31 @@ public class GalleryService
         return assignment;
     }
 
+    public async Task<List<GalleryImage>> GetContentPageImagesAsync(string slug)
+    {
+        var page = await _context.ContentPages
+            .AsNoTracking()
+            .Include(x => x.GalleryGroups.OrderBy(group => group.SortOrder))
+            .ThenInclude(x => x.GalleryGroup)
+            .ThenInclude(x => x!.Images.OrderBy(image => image.SortOrder))
+            .ThenInclude(x => x.GalleryImage)
+            .FirstOrDefaultAsync(x => x.Slug == slug && x.IsActive);
+
+        if (page is null)
+            return [];
+
+        var images = page.GalleryGroups
+            .Where(x => x.GalleryGroup is not null)
+            .SelectMany(x => x.GalleryGroup!.Images.OrderBy(image => image.SortOrder))
+            .Where(x => x.GalleryImage is not null)
+            .Select(x => x.GalleryImage!)
+            .GroupBy(x => x.Id)
+            .Select(x => x.First())
+            .ToList();
+
+        return GetExistingImages(images);
+    }
+
     public async Task<GalleryImage> AddAsync(GalleryImage image)
     {
         _context.GalleryImages.Add(image);

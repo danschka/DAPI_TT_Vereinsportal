@@ -55,6 +55,9 @@
     [Parameter]
     public bool ShowCaptions { get; set; }
 
+    [Parameter]
+    public string ContentPageSlug { get; set; } = "";
+
     private List<GalleryImage> images = new();
     private int currentIndex;
     private int intervalSeconds = 3;
@@ -74,20 +77,33 @@
         return $"background-image: url('{image.ImagePath}');";
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        var assignment = await GalleryService.GetPageAssignmentAsync(PageKey);
+        cancellationTokenSource?.Cancel();
+        cancellationTokenSource?.Dispose();
+        cancellationTokenSource = null;
+        currentIndex = 0;
+        images = [];
 
-        if (assignment?.GalleryGroup?.Images != null)
+        if (!string.IsNullOrWhiteSpace(ContentPageSlug))
         {
-            images = assignment.GalleryGroup.Images
-                .OrderBy(x => x.SortOrder)
-                .Where(x => x.GalleryImage != null)
-                .Select(x => x.GalleryImage!)
-                .ToList();
+            images = await GalleryService.GetContentPageImagesAsync(ContentPageSlug);
+        }
+        else
+        {
+            var assignment = await GalleryService.GetPageAssignmentAsync(PageKey);
 
-            intervalSeconds = Math.Clamp(assignment.IntervalSeconds, 2, 30);
-            slideshowEnabled = assignment.SlideshowEnabled;
+            if (assignment?.GalleryGroup?.Images != null)
+            {
+                images = assignment.GalleryGroup.Images
+                    .OrderBy(x => x.SortOrder)
+                    .Where(x => x.GalleryImage != null)
+                    .Select(x => x.GalleryImage!)
+                    .ToList();
+
+                intervalSeconds = Math.Clamp(assignment.IntervalSeconds, 2, 30);
+                slideshowEnabled = assignment.SlideshowEnabled;
+            }
         }
 
         if (images.Count > 1 && slideshowEnabled)

@@ -7,6 +7,7 @@ public class ContentPage
     public string Slug { get; set; } = "";
     public string? Summary { get; set; }
     public string Content { get; set; } = "";
+    public string LayoutStyle { get; set; } = "cards";
     public string? ExternalUrl { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;

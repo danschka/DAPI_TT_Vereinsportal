@@ -20,13 +20,26 @@
     <section class="cms-section-list">
         @foreach (var section in ContentSections)
         {
-            <article class="content-card cms-text-card">
-                @if (!string.IsNullOrWhiteSpace(section.Heading))
-                {
-                    <p class="cms-text-card__question">@section.Heading</p>
-                }
-                <p>@section.Text</p>
-            </article>
+            @if (section.IsImage)
+            {
+                <figure class="content-card cms-image-card">
+                    <img src="@section.ImagePath" alt="@section.Text" />
+                    @if (!string.IsNullOrWhiteSpace(section.Text))
+                    {
+                        <figcaption>@section.Text</figcaption>
+                    }
+                </figure>
+            }
+            else
+            {
+                <article class="content-card cms-text-card">
+                    @if (!string.IsNullOrWhiteSpace(section.Heading))
+                    {
+                        <p class="cms-text-card__question">@section.Heading</p>
+                    }
+                    <p>@section.Text</p>
+                </article>
+            }
         }
     </section>
 }
@@ -67,7 +80,7 @@
         ? DefaultSummary
         : page.Summary;
 
-    private IReadOnlyList<TextSection> ContentSections => GetContentSections(page?.Content).ToList();
+    private IReadOnlyList<CmsContentBlock> ContentSections => CmsContentParser.Parse(page?.Content);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -80,6 +93,11 @@
     {
         if (string.IsNullOrWhiteSpace(content))
             return [];
+
+        var rawLines = content.Replace("\r\n", "\n").Split('\n');
+
+        if (rawLines.Any(line => line.TrimStart().StartsWith("### ")))
+            return GetStructuredContentSections(rawLines);
 
         var lines = content
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -118,12 +136,48 @@
         return sections;
     }
 
+    private static IEnumerable<TextSection> GetStructuredContentSections(IEnumerable<string> lines)
+    {
+        var sections = new List<TextSection>();
+        var heading = "";
+        var textBuffer = new List<string>();
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.TrimEnd();
+
+            if (line.TrimStart().StartsWith("### "))
+            {
+                AddStructuredTextSection(sections, heading, textBuffer);
+                heading = line.Trim()[4..].Trim();
+                textBuffer.Clear();
+                continue;
+            }
+
+            textBuffer.Add(line);
+        }
+
+        AddStructuredTextSection(sections, heading, textBuffer);
+        return sections;
+    }
+
     private static void AddBufferedTextSection(List<TextSection> sections, List<string> textBuffer)
     {
         if (textBuffer.Count == 0)
             return;
 
         sections.Add(new TextSection(null, string.Join("\n", textBuffer)));
+        textBuffer.Clear();
+    }
+
+    private static void AddStructuredTextSection(List<TextSection> sections, string heading, List<string> textBuffer)
+    {
+        var text = string.Join("\n", textBuffer).Trim();
+
+        if (string.IsNullOrWhiteSpace(heading) && string.IsNullOrWhiteSpace(text))
+            return;
+
+        sections.Add(new TextSection(string.IsNullOrWhiteSpace(heading) ? null : heading, text));
         textBuffer.Clear();
     }
 

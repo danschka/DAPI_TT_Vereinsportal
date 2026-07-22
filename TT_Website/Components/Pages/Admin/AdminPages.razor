@@ -39,52 +39,98 @@
             <label class="form-label">Kurztext</label>
             <InputTextArea class="form-control" @bind-Value="currentPage.Summary" />
 
+            <fieldset class="admin-layout-picker">
+                <legend>Seiten-Layout</legend>
+                <p class="form-text">Wähle, wie Text-Cards und Inhaltsbilder auf dieser Seite angeordnet werden.</p>
+
+                <InputRadioGroup @bind-Value="currentPage.LayoutStyle">
+                    <div class="admin-layout-options">
+                        @foreach (var option in layoutOptions)
+                        {
+                            <label class="admin-layout-option @(currentPage.LayoutStyle == option.Value ? "is-selected" : "")">
+                                <InputRadio Value="@option.Value" />
+                                <span class="admin-layout-preview admin-layout-preview--@option.Value" aria-hidden="true">
+                                    <i></i><i></i><i></i><i></i>
+                                </span>
+                                <strong>@option.Title</strong>
+                                <small>@option.Description</small>
+                            </label>
+                        }
+                    </div>
+                </InputRadioGroup>
+            </fieldset>
+
             <div class="admin-section-toolbar">
                 <div>
-                    <label class="form-label">Text-Cards</label>
+                    <label class="form-label">Seiteninhalt</label>
                     <div class="form-text">
-                        Jede Textbox wird auf der öffentlichen Seite als eigene Card angezeigt.
+                        Text-Cards und Bilder können frei angeordnet werden.
                     </div>
                 </div>
-                <button class="btn btn-outline-primary" type="button" @onclick="AddTextCard">Card hinzufügen</button>
+                <div class="button-row compact">
+                    <button class="btn btn-outline-primary" type="button" @onclick="AddTextCard">Text-Card hinzufügen</button>
+                    <button class="btn btn-outline-primary" type="button" @onclick="AddImageCard">Bild hinzufügen</button>
+                </div>
             </div>
 
             <div class="admin-text-card-list">
-                @for (var index = 0; index < textCards.Count; index++)
+                @for (var index = 0; index < contentBlocks.Count; index++)
                 {
                     var cardIndex = index;
-                    var card = textCards[cardIndex];
+                    var card = contentBlocks[cardIndex];
 
                     <article class="admin-text-card-editor">
                         <div class="admin-text-card-editor__header">
-                            <strong>Card @(cardIndex + 1)</strong>
+                            <strong>@(card.IsImage ? "Bild" : "Text-Card") @(cardIndex + 1)</strong>
                             <div class="button-row compact">
                                 <button class="btn btn-outline-secondary btn-sm"
                                         type="button"
                                         disabled="@(cardIndex == 0)"
-                                        @onclick="() => MoveTextCard(cardIndex, -1)">
+                                        @onclick="() => MoveContentBlock(cardIndex, -1)">
                                     Hoch
                                 </button>
                                 <button class="btn btn-outline-secondary btn-sm"
                                         type="button"
-                                        disabled="@(cardIndex == textCards.Count - 1)"
-                                        @onclick="() => MoveTextCard(cardIndex, 1)">
+                                        disabled="@(cardIndex == contentBlocks.Count - 1)"
+                                        @onclick="() => MoveContentBlock(cardIndex, 1)">
                                     Runter
                                 </button>
                                 <button class="btn btn-outline-secondary btn-sm"
                                         type="button"
-                                        disabled="@(textCards.Count == 1)"
-                                        @onclick="() => RemoveTextCard(cardIndex)">
+                                        disabled="@(contentBlocks.Count == 1)"
+                                        @onclick="() => RemoveContentBlock(cardIndex)">
                                     Entfernen
                                 </button>
                             </div>
                         </div>
 
-                        <label class="form-label">Unterüberschrift</label>
-                        <InputText class="form-control" @bind-Value="card.Heading" placeholder="z. B. Was macht uns aus?" />
+                        @if (card.IsImage)
+                        {
+                            <label class="form-label">Bild aus der Galerie</label>
+                            <InputSelect class="form-select" @bind-Value="card.ImagePath">
+                                <option value="">Bild wählen</option>
+                                @foreach (var image in galleryImages)
+                                {
+                                    <option value="@image.ImagePath">@image.Title</option>
+                                }
+                            </InputSelect>
 
-                        <label class="form-label">Text</label>
-                        <InputTextArea class="form-control textarea-md" @bind-Value="card.Text" />
+                            @if (!string.IsNullOrWhiteSpace(card.ImagePath))
+                            {
+                                <img class="admin-content-image-preview" src="@card.ImagePath" alt="Vorschau" />
+                            }
+
+                            <label class="form-label">Bildunterschrift</label>
+                            <InputText class="form-control" @bind-Value="card.Text" />
+                        }
+                        else
+                        {
+                            <label class="form-label">Unterüberschrift</label>
+                            <InputText class="form-control" @bind-Value="card.Heading" placeholder="z. B. Was macht uns aus?" />
+
+                            <label class="form-label">Text</label>
+                            <InputTextArea class="form-control textarea-md" @bind-Value="card.Text" />
+                        }
                     </article>
                 }
             </div>
@@ -178,8 +224,9 @@
 @code {
     private List<ContentPage> pages = [];
     private List<GalleryGroup> groups = [];
+    private List<GalleryImage> galleryImages = [];
     private ContentPage currentPage = new();
-    private List<EditableTextCard> textCards = [new()];
+    private List<EditableContentBlock> contentBlocks = [new()];
     private string message = "";
     private string messageClass = "alert-info";
     private int selectedEditPageId;
@@ -195,6 +242,7 @@
     {
         pages = await ContentPageService.GetAllAsync();
         groups = await GalleryService.GetGroupsAsync();
+        galleryImages = await GalleryService.GetAllAsync();
     }
 
     private void LoadSelectedPage()
@@ -206,7 +254,7 @@
         else
         {
             currentPage = new ContentPage();
-            textCards = [new EditableTextCard()];
+            contentBlocks = [new EditableContentBlock()];
         }
     }
 
@@ -218,7 +266,7 @@
             return;
         }
 
-        currentPage.Content = SerializeTextCards();
+        currentPage.Content = SerializeContentBlocks();
         await ContentPageService.UpdateContentAsync(currentPage);
         SetMessage("Seiteninhalt wurde gespeichert.", "alert-success");
         await LoadData();
@@ -234,46 +282,59 @@
             Slug = page.Slug,
             Summary = page.Summary,
             Content = page.Content,
+            LayoutStyle = ContentPageService.NormalizeLayoutStyle(page.LayoutStyle),
             ExternalUrl = page.ExternalUrl,
             ShowMap = page.ShowMap,
             MapAddress = page.MapAddress,
             MapEmbedUrl = page.MapEmbedUrl
         };
 
-        textCards = ParseTextCards(page.Content);
+        contentBlocks = ParseContentBlocks(page.Content);
     }
 
     private void AddTextCard()
     {
-        textCards.Add(new EditableTextCard());
+        contentBlocks.Add(new EditableContentBlock());
     }
 
-    private void RemoveTextCard(int index)
+    private void AddImageCard()
     {
-        if (textCards.Count <= 1 || index < 0 || index >= textCards.Count)
+        contentBlocks.Add(new EditableContentBlock { IsImage = true });
+    }
+
+    private void RemoveContentBlock(int index)
+    {
+        if (contentBlocks.Count <= 1 || index < 0 || index >= contentBlocks.Count)
             return;
 
-        textCards.RemoveAt(index);
+        contentBlocks.RemoveAt(index);
     }
 
-    private void MoveTextCard(int index, int direction)
+    private void MoveContentBlock(int index, int direction)
     {
         var newIndex = index + direction;
 
-        if (index < 0 || index >= textCards.Count || newIndex < 0 || newIndex >= textCards.Count)
+        if (index < 0 || index >= contentBlocks.Count || newIndex < 0 || newIndex >= contentBlocks.Count)
             return;
 
-        (textCards[index], textCards[newIndex]) = (textCards[newIndex], textCards[index]);
+        (contentBlocks[index], contentBlocks[newIndex]) = (contentBlocks[newIndex], contentBlocks[index]);
     }
 
-    private string SerializeTextCards()
+    private string SerializeContentBlocks()
     {
         return string.Join(
             $"{Environment.NewLine}{Environment.NewLine}",
-            textCards
-                .Where(card => !string.IsNullOrWhiteSpace(card.Heading) || !string.IsNullOrWhiteSpace(card.Text))
+            contentBlocks
+                .Where(card => card.IsImage
+                    ? !string.IsNullOrWhiteSpace(card.ImagePath)
+                    : !string.IsNullOrWhiteSpace(card.Heading) || !string.IsNullOrWhiteSpace(card.Text))
                 .Select(card =>
                 {
+                    if (card.IsImage)
+                    {
+                        return $":::image{Environment.NewLine}{card.ImagePath?.Trim()}{Environment.NewLine}{card.Text?.Trim()}{Environment.NewLine}:::";
+                    }
+
                     var heading = card.Heading?.Trim() ?? "";
                     var text = card.Text?.Trim() ?? "";
 
@@ -283,97 +344,19 @@
                 }));
     }
 
-    private static List<EditableTextCard> ParseTextCards(string content)
+    private static List<EditableContentBlock> ParseContentBlocks(string content)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            return [new EditableTextCard()];
-
-        var lines = content.Replace("\r\n", "\n").Split('\n');
-
-        if (lines.Any(line => line.TrimStart().StartsWith("### ")))
-            return ParseStructuredTextCards(lines);
-
-        return ParseLegacyTextCards(lines);
-    }
-
-    private static List<EditableTextCard> ParseStructuredTextCards(IEnumerable<string> lines)
-    {
-        var cards = new List<EditableTextCard>();
-        var heading = "";
-        var textLines = new List<string>();
-
-        foreach (var rawLine in lines)
-        {
-            var line = rawLine.TrimEnd();
-
-            if (line.TrimStart().StartsWith("### "))
+        var blocks = CmsContentParser.Parse(content)
+            .Select(block => new EditableContentBlock
             {
-                AddParsedCard(cards, heading, textLines);
-                heading = line.Trim()[4..].Trim();
-                textLines.Clear();
-                continue;
-            }
-
-            textLines.Add(line);
-        }
-
-        AddParsedCard(cards, heading, textLines);
-        return cards.Count == 0 ? [new EditableTextCard()] : cards;
-    }
-
-    private static List<EditableTextCard> ParseLegacyTextCards(IEnumerable<string> rawLines)
-    {
-        var lines = rawLines
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line))
+                IsImage = block.IsImage,
+                Heading = block.Heading ?? "",
+                Text = block.Text,
+                ImagePath = block.ImagePath ?? ""
+            })
             .ToList();
 
-        var cards = new List<EditableTextCard>();
-        var textBuffer = new List<string>();
-
-        for (var index = 0; index < lines.Count; index++)
-        {
-            var line = lines[index];
-
-            if (line.EndsWith('?') && index + 1 < lines.Count)
-            {
-                AddParsedCard(cards, "", textBuffer);
-                cards.Add(new EditableTextCard { Heading = line, Text = lines[index + 1] });
-                index++;
-                continue;
-            }
-
-            var questionMarkIndex = line.IndexOf('?');
-            if (questionMarkIndex >= 0 && questionMarkIndex < line.Length - 1)
-            {
-                AddParsedCard(cards, "", textBuffer);
-                cards.Add(new EditableTextCard
-                {
-                    Heading = line[..(questionMarkIndex + 1)].Trim(),
-                    Text = line[(questionMarkIndex + 1)..].Trim()
-                });
-                continue;
-            }
-
-            textBuffer.Add(line);
-        }
-
-        AddParsedCard(cards, "", textBuffer);
-        return cards.Count == 0 ? [new EditableTextCard()] : cards;
-    }
-
-    private static void AddParsedCard(List<EditableTextCard> cards, string heading, List<string> textLines)
-    {
-        var text = string.Join(Environment.NewLine, textLines).Trim();
-
-        if (string.IsNullOrWhiteSpace(heading) && string.IsNullOrWhiteSpace(text))
-            return;
-
-        cards.Add(new EditableTextCard
-        {
-            Heading = heading.Trim(),
-            Text = text
-        });
+        return blocks.Count == 0 ? [new EditableContentBlock()] : blocks;
     }
 
     private async Task AssignGroup()
@@ -423,16 +406,28 @@
             "galerie" => "/gallery",
             "links" => "/links",
             "webshop" => page.ExternalUrl ?? "https://de.butterfly.tt/",
-            "weihnachtsmarkt" => "/weihnachtsmarkt",
             "impressum" => "/impressum",
             "datenschutz" => "/datenschutz",
             _ => $"/seite/{page.Slug}"
         };
     }
 
-    private sealed class EditableTextCard
+    private sealed class EditableContentBlock
     {
+        public bool IsImage { get; set; }
         public string Heading { get; set; } = "";
         public string Text { get; set; } = "";
+        public string ImagePath { get; set; } = "";
     }
+
+    private static readonly LayoutOption[] layoutOptions =
+    [
+        new("cards", "Flexible Cards", "Kurze Cards fließen in einem ruhigen Raster."),
+        new("single", "Große Textfläche", "Alle Inhalte stehen übersichtlich untereinander."),
+        new("image-left", "Bilder links", "Bilder links, Texte in der rechten Spalte."),
+        new("image-right", "Bilder rechts", "Texte links, Bilder in der rechten Spalte."),
+        new("images-bottom", "Bilder unten", "Zuerst die Texte, anschließend alle Bilder.")
+    ];
+
+    private sealed record LayoutOption(string Value, string Title, string Description);
 }

@@ -42,15 +42,24 @@
 @code {
     private List<List<string>> rankingRows = [];
     private DateTime? lastSyncedAt;
-    private bool isLoading;
+    private bool isLoading = true;
+    private bool loadingStarted;
     private string statusMessage = "";
     private string statusClass = "alert-info";
     private int PlayerCount => rankingRows.Count > 0 ? rankingRows.Count - 1 : 0;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        isLoading = true;
+        if (!firstRender || loadingStarted)
+            return;
 
+        loadingStarted = true;
+        await LoadRankingAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadRankingAsync()
+    {
         var rankingUrl = await SiteSettingsService.GetValueAsync(SiteSettingsService.RankingUrl) ?? "";
 
         if (string.IsNullOrWhiteSpace(rankingUrl))

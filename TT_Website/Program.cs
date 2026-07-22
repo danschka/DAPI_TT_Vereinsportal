@@ -159,6 +159,10 @@ namespace TT_Website
                 return Results.Redirect("/admin/login?loggedOut=1");
             }).RequireAuthorization();
 
+            // MapStaticAssets only knows files that existed while publishing.
+            // Uploaded images and documents are created at runtime and therefore
+            // also need the conventional static-file middleware.
+            app.UseStaticFiles();
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
