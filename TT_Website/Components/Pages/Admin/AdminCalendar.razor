@@ -1,0 +1,179 @@
+@page "/admin/calendar"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Forms
+@using TT_Website.Models
+@using TT_Website.Services
+
+@inject CalendarEventService CalendarEventService
+@inject FileUploadService FileUploadService
+
+<section class="admin-page-header">
+    <div>
+        <p class="eyebrow">Kalender</p>
+        <h1>Veranstaltungen verwalten</h1>
+        <p class="text-muted">Termine für den 7-Tage-Kalender und die nächste Aktion auf der Startseite pflegen.</p>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert @messageClass">@message</div>
+}
+
+<section class="content-card form-card">
+    <h2>@(editingId.HasValue ? "Veranstaltung bearbeiten" : "Veranstaltung hinzufügen")</h2>
+    <div class="form-row">
+        <div>
+            <label class="form-label">Überschrift</label>
+            <InputText class="form-control" @bind-Value="title" maxlength="160" />
+        </div>
+        <div>
+            <label class="form-label">Datum und Uhrzeit</label>
+            <InputDate class="form-control" @bind-Value="eventDate" Type="InputDateType.DateTimeLocal" />
+        </div>
+    </div>
+
+    <label class="form-label">Beschreibung</label>
+    <InputTextArea class="form-control" @bind-Value="description" rows="5" maxlength="2000" />
+
+    @if (!string.IsNullOrWhiteSpace(existingImagePath))
+    {
+        <img class="admin-preview-image" src="@existingImagePath" alt="@title" />
+    }
+    <label class="form-label">Bild @(editingId.HasValue ? "(optional ersetzen)" : "")</label>
+    <InputFile class="form-control" OnChange="e => selectedFile = e.File" accept="image/*" />
+
+    <div class="button-row">
+        <button class="btn btn-primary" type="button" @onclick="SaveAsync">Speichern</button>
+        @if (editingId.HasValue)
+        {
+            <button class="btn btn-outline-secondary" type="button" @onclick="Reset">Abbrechen</button>
+        }
+    </div>
+</section>
+
+<section class="content-card">
+    <div class="section-heading"><div><h2>Vorhandene Veranstaltungen</h2><span>@events.Count Termine</span></div></div>
+    @if (events.Count == 0)
+    {
+        <p class="text-muted">Noch keine Veranstaltungen vorhanden.</p>
+    }
+    else
+    {
+        <div class="admin-event-list">
+            @foreach (var item in events)
+            {
+                <article class="admin-event-card">
+                    @if (!string.IsNullOrWhiteSpace(item.ImagePath))
+                    {
+                        <img src="@item.ImagePath" alt="@item.Title" />
+                    }
+                    <div>
+                        <time datetime="@item.EventDate.ToString("s")">@item.EventDate.ToString("dd.MM.yyyy · HH:mm") Uhr</time>
+                        <h3>@item.Title</h3>
+                        <p>@item.Description</p>
+                        <div class="button-row">
+                            <button class="btn btn-outline-primary" type="button" @onclick="() => Edit(item)">Bearbeiten</button>
+                            <button class="btn btn-outline-secondary" type="button" @onclick="() => DeleteAsync(item)">Löschen</button>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<CalendarEvent> events = [];
+    private int? editingId;
+    private string title = "";
+    private string description = "";
+    private DateTime eventDate = DateTime.Today.AddDays(1).AddHours(18);
+    private IBrowserFile? selectedFile;
+    private string? existingImagePath;
+    private string message = "";
+    private string messageClass = "alert-info";
+
+    protected override async Task OnInitializedAsync() => events = await CalendarEventService.GetAllAsync();
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description))
+        {
+            SetMessage("Bitte Überschrift und Beschreibung ausfüllen.", "alert-warning");
+            return;
+        }
+        if (selectedFile is null && string.IsNullOrWhiteSpace(existingImagePath))
+        {
+            SetMessage("Bitte ein Bild auswählen.", "alert-warning");
+            return;
+        }
+
+        try
+        {
+            var imagePath = existingImagePath;
+            if (selectedFile is not null)
+            {
+                imagePath = await FileUploadService.SaveAsync(selectedFile, "events", UploadFileKind.Image, 10 * 1024 * 1024);
+            }
+
+            var item = new CalendarEvent
+            {
+                Id = editingId ?? 0,
+                Title = title.Trim(),
+                Description = description.Trim(),
+                EventDate = eventDate,
+                ImagePath = imagePath
+            };
+            if (editingId.HasValue)
+            {
+                await CalendarEventService.UpdateAsync(item);
+                if (selectedFile is not null) FileUploadService.DeleteIfExists(existingImagePath);
+                SetMessage("Veranstaltung wurde aktualisiert.", "alert-success");
+            }
+            else
+            {
+                await CalendarEventService.AddAsync(item);
+                SetMessage("Veranstaltung wurde gespeichert.", "alert-success");
+            }
+            Reset();
+            events = await CalendarEventService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            SetMessage(ex.Message, "alert-danger");
+        }
+    }
+
+    private void Edit(CalendarEvent item)
+    {
+        editingId = item.Id;
+        title = item.Title;
+        description = item.Description;
+        eventDate = item.EventDate;
+        existingImagePath = item.ImagePath;
+        selectedFile = null;
+    }
+
+    private async Task DeleteAsync(CalendarEvent item)
+    {
+        await CalendarEventService.DeleteAsync(item.Id);
+        FileUploadService.DeleteIfExists(item.ImagePath);
+        events = await CalendarEventService.GetAllAsync();
+        SetMessage("Veranstaltung wurde gelöscht.", "alert-info");
+        if (editingId == item.Id) Reset();
+    }
+
+    private void Reset()
+    {
+        editingId = null;
+        title = "";
+        description = "";
+        eventDate = DateTime.Today.AddDays(1).AddHours(18);
+        selectedFile = null;
+        existingImagePath = null;
+    }
+
+    private void SetMessage(string value, string cssClass) { message = value; messageClass = cssClass; }
+}

@@ -74,6 +74,43 @@ public class FileUploadService
         return $"/uploads/{uploadSubfolder}/{safeFileName}";
     }
 
+    public async Task<string> SaveImageStreamAsync(
+        Stream source,
+        string originalFileName,
+        string uploadSubfolder,
+        long length,
+        long maxAllowedSize)
+    {
+        if (length <= 0)
+            throw new InvalidOperationException("Die Datei ist leer.");
+
+        if (length > maxAllowedSize)
+            throw new InvalidOperationException($"Die Datei ist zu groß. Maximal erlaubt sind {maxAllowedSize / 1024 / 1024} MB.");
+
+        if (!IsAllowedImageFileName(originalFileName))
+            throw new InvalidOperationException("Dieser Dateityp ist nicht erlaubt. Erlaubt sind: JPG, PNG, WEBP oder GIF.");
+
+        var safeFileName = CreateSafeFileName(originalFileName);
+        var folderPath = Path.Combine(_environment.WebRootPath, "uploads", uploadSubfolder);
+        Directory.CreateDirectory(folderPath);
+        var uploadPath = Path.Combine(folderPath, safeFileName);
+
+        await using var output = new FileStream(uploadPath, FileMode.CreateNew);
+        await source.CopyToAsync(output);
+
+        if (output.Length > maxAllowedSize)
+        {
+            output.Close();
+            File.Delete(uploadPath);
+            throw new InvalidOperationException("Die entpackte Datei überschreitet das Größenlimit.");
+        }
+
+        return $"/uploads/{uploadSubfolder}/{safeFileName}";
+    }
+
+    public static bool IsAllowedImageFileName(string fileName) =>
+        AllowedImageExtensions.Contains(Path.GetExtension(fileName));
+
     public void DeleteIfExists(string? relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath))

@@ -33,9 +33,13 @@
 
 	<ItemGroup>
 	  <Compile Remove="artifacts\**" />
+	  <Compile Remove="Tests\**" />
 	  <Content Remove="artifacts\**" />
+	  <Content Remove="Tests\**" />
 	  <EmbeddedResource Remove="artifacts\**" />
+	  <EmbeddedResource Remove="Tests\**" />
 	  <None Remove="artifacts\**" />
+	  <None Remove="Tests\**" />
 	</ItemGroup>
 
 </Project>

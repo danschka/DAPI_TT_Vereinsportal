@@ -1,0 +1,10 @@
+@page "/mitglieder/fotos"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Member,Admin")]
+@using TT_Website.Models
+@using TT_Website.Services
+@inject GalleryService GalleryService
+
+<header class="plain-page-header"><p class="eyebrow">Mitgliederbereich</p><h1>Fotogalerie</h1><p>Alle öffentlichen und internen Bildgruppen des Vereins.</p></header>
+@if (groups.Count == 0) { <p class="preview-empty">Noch keine Bildgruppen vorhanden.</p> }
+else { <GalleryGroupWidget Groups="GalleryWidgetGroup.FromGroups(groups)" /> }
+@code { private List<GalleryGroup> groups = []; protected override async Task OnInitializedAsync() => groups = await GalleryService.GetMemberGroupsAsync(); }

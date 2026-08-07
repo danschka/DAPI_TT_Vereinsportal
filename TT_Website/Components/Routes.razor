@@ -1,7 +1,9 @@
 <CascadingAuthenticationState>
     <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
         <Found Context="routeData">
-            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                <NotAuthorized><LayoutView Layout="typeof(Layout.MainLayout)"><section class="content-card empty-state"><h1>Anmeldung erforderlich</h1><p>Dieser Bereich ist nur für Mitglieder sichtbar.</p><a class="btn btn-primary" href="/mitglieder/login">Zum Login</a></section></LayoutView></NotAuthorized>
+            </AuthorizeRouteView>
         </Found>
     </Router>
 </CascadingAuthenticationState>

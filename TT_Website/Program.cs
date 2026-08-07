@@ -33,6 +33,7 @@ namespace TT_Website
             builder.Services.AddScoped<ContentPageService>();
             builder.Services.AddScoped<SiteSettingsService>();
             builder.Services.AddScoped<SiteSeedService>();
+            builder.Services.AddScoped<CalendarEventService>();
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
                 {
@@ -100,7 +101,7 @@ namespace TT_Website
                 if (path.StartsWithSegments("/admin") &&
                     !path.StartsWithSegments("/admin/login") &&
                     !path.StartsWithSegments("/admin/auth/login") &&
-                    context.User.Identity?.IsAuthenticated != true)
+                    !context.User.IsInRole("Admin"))
                 {
                     var returnUrl = context.Request.PathBase + context.Request.Path + context.Request.QueryString;
                     context.Response.Redirect($"/admin/login?returnUrl={Uri.EscapeDataString(returnUrl)}");
@@ -158,6 +159,20 @@ namespace TT_Website
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.Redirect("/admin/login?loggedOut=1");
             }).RequireAuthorization();
+
+            app.MapPost("/mitglieder/auth/login", async (HttpContext context, IAntiforgery antiforgery) =>
+            {
+                await antiforgery.ValidateRequestAsync(context);
+                var form = await context.Request.ReadFormAsync();
+                if (!PasswordsMatch(form["password"].ToString(), "test"))
+                    return Results.Redirect("/mitglieder/login?error=1");
+
+                var identity = new ClaimsIdentity(
+                [new Claim(ClaimTypes.Name, "Mitglied"), new Claim(ClaimTypes.Role, "Member")],
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+                return Results.Redirect("/mitglieder/fotos");
+            }).RequireRateLimiting("admin-login");
 
             // MapStaticAssets only knows files that existed while publishing.
             // Uploaded images and documents are created at runtime and therefore

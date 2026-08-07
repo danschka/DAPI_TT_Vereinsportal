@@ -63,6 +63,8 @@ public class SiteSeedService
             ("Galerie", "galerie", null, 130, null),
             ("Links", "links", null, 140, null),
             ("Webshop", "webshop", null, 145, "https://de.butterfly.tt/"),
+            ("Tischtennis TV", "tischtennis-tv", null, 150, null),
+            ("Archiv", "archiv", null, 155, null),
             ("Impressum", "impressum", null, 160, null),
             ("Datenschutzerklärung", "datenschutz", null, 170, null)
         };
@@ -103,6 +105,7 @@ public class SiteSeedService
 
         var hiddenNavigationSlugs = new[]
         {
+            "startseite",
             "training",
             "news",
             "kontakt",

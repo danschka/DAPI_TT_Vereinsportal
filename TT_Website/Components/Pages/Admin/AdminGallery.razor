@@ -4,6 +4,7 @@
 @using TT_Website.Models
 @using TT_Website.Services
 @using Microsoft.AspNetCore.Components.Forms
+@using System.IO.Compression
 
 @inject GalleryService GalleryService
 @inject FileUploadService FileUploadService
@@ -16,6 +17,65 @@
     </div>
     <a class="btn btn-primary" href="/admin/gallery-upload">Neues Bild hochladen</a>
 </section>
+
+<section class="content-card form-card bulk-upload-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Sammelimport</p>
+            <h2>Ordner oder ZIP hochladen</h2>
+        </div>
+    </div>
+    <p class="text-muted">Wähle einen ganzen Bilderordner, mehrere Bilder oder eine ZIP-Datei. Maximal 500 Bilder, je Bild 10 MB.</p>
+
+    <div class="bulk-upload-grid">
+        <div>
+            <label class="form-label">Bilderordner / mehrere Bilder</label>
+            <InputFile @key="bulkUploadInputKey" class="form-control" multiple webkitdirectory accept="image/jpeg,image/png,image/webp,image/gif" OnChange="HandleBulkFilesSelected" />
+            @if (bulkFiles.Count > 0)
+            {
+                <small>@bulkFiles.Count Bilddatei(en) ausgewählt</small>
+            }
+        </div>
+        <div>
+            <label class="form-label">ZIP-Datei</label>
+            <InputFile @key="zipUploadInputKey" class="form-control" accept=".zip,application/zip" OnChange="HandleZipSelected" />
+            @if (zipFile is not null)
+            {
+                <small>@zipFile.Name ausgewählt</small>
+            }
+        </div>
+    </div>
+
+    <button class="btn btn-primary" type="button" disabled="@isBulkUploading" @onclick="ImportSelectedFiles">
+        @(isBulkUploading ? "Bilder werden importiert …" : "Auswahl importieren")
+    </button>
+</section>
+
+@if (showGroupDialog)
+{
+    <div class="admin-dialog" role="dialog" aria-modal="true" aria-labelledby="bulk-group-title">
+        <button class="admin-dialog__backdrop" type="button" aria-label="Dialog schließen" @onclick="FinishWithoutGroup"></button>
+        <section class="admin-dialog__panel">
+            <p class="eyebrow">Import abgeschlossen</p>
+            <h2 id="bulk-group-title">Als Bildgruppe anlegen?</h2>
+            <p>@importedImageIds.Count Bilder wurden importiert. Du kannst sie jetzt direkt in einer neuen Bildgruppe zusammenfassen.</p>
+            <label class="form-label">Name der Bildgruppe</label>
+            <InputText class="form-control" @bind-Value="importGroupName" placeholder="z. B. Vereinsmeisterschaft 2026" />
+            <label class="form-check admin-check">
+                <InputCheckbox class="form-check-input" @bind-Value="importGroupIsPublic" />
+                <span>Im öffentlichen Archiv anzeigen</span>
+            </label>
+            @if (!string.IsNullOrWhiteSpace(dialogMessage))
+            {
+                <p class="text-danger">@dialogMessage</p>
+            }
+            <div class="button-row">
+                <button class="btn btn-primary" type="button" @onclick="CreateGroupFromImport">Bildgruppe anlegen</button>
+                <button class="btn btn-outline-secondary" type="button" @onclick="FinishWithoutGroup">Nein, nur Bilder speichern</button>
+            </div>
+        </section>
+    </div>
+}
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
@@ -56,6 +116,12 @@
 
     <label class="form-label">Beschreibung</label>
     <InputTextArea class="form-control" @bind-Value="groupDescription" placeholder="Beschreibung optional" />
+
+    <label class="form-check admin-check">
+        <InputCheckbox class="form-check-input" @bind-Value="groupIsPublic" />
+        <span>Im öffentlichen Archiv anzeigen</span>
+    </label>
+    <small class="text-muted">Deaktivierte Bildgruppen sind nur im Mitgliederbereich sichtbar.</small>
 
     @if (!editingGroupId.HasValue)
     {
@@ -109,6 +175,7 @@
                                 <p class="text-muted">@group.Description</p>
                             }
                             <span class="badge bg-secondary">@group.Images.Count Bild@(group.Images.Count == 1 ? "" : "er")</span>
+                            <span class="badge @(group.IsPublic ? "bg-success" : "bg-dark")">@(group.IsPublic ? "Im Archiv" : "Nur Mitglieder")</span>
                         </div>
 
                         <div class="button-row">
@@ -161,87 +228,6 @@
 </section>
 
 <section class="content-card">
-    <h2>Gruppen Seiten zuweisen</h2>
-
-    <div class="admin-page-assignment-form">
-        <div>
-            <label class="form-label">Seite</label>
-            <select class="form-select" @bind="assignmentPageKey">
-                <option value="home">Startseite</option>
-                <option value="gallery">Galerie</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="form-label">Anzeigename</label>
-            <InputText class="form-control" @bind-Value="assignmentPageTitle" />
-        </div>
-
-        <div>
-            <label class="form-label">Gruppe</label>
-            <select class="form-select" @bind="assignmentGroupId">
-                <option value="0">Gruppe auswählen</option>
-                @foreach (var group in groups)
-                {
-                    <option value="@group.Id">@group.Name</option>
-                }
-            </select>
-        </div>
-
-        <div>
-            <label class="form-label">Intervall Sekunden</label>
-            <InputNumber class="form-control" @bind-Value="assignmentIntervalSeconds" />
-        </div>
-
-        <label class="form-check admin-check">
-            <InputCheckbox class="form-check-input" @bind-Value="assignmentSlideshowEnabled" />
-            <span>Slideshow aktiv</span>
-        </label>
-
-        <button class="btn btn-primary" type="button" @onclick="SavePageAssignment">
-            Zuweisung speichern
-        </button>
-    </div>
-
-    @if (assignments.Count == 0)
-    {
-        <p class="text-muted">Noch keine Seitenzuweisungen vorhanden.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
-                <thead>
-                    <tr>
-                        <th>Seite</th>
-                        <th>Gruppe</th>
-                        <th>Slideshow</th>
-                        <th>Intervall</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var assignment in assignments)
-                    {
-                        <tr>
-                            <td>@assignment.PageTitle (@assignment.PageKey)</td>
-                            <td>@assignment.GalleryGroup?.Name</td>
-                            <td>@(assignment.SlideshowEnabled ? "Ja" : "Nein")</td>
-                            <td>@assignment.IntervalSeconds Sekunden</td>
-                            <td class="text-end">
-                                <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="() => DeletePageAssignment(assignment.Id)">
-                                    Löschen
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</section>
-
-<section class="content-card">
     <div class="section-heading">
         <div>
             <h2>Alle Bilder</h2>
@@ -275,23 +261,27 @@
 @code {
     private List<GalleryImage> images = [];
     private List<GalleryGroup> groups = [];
-    private List<PageGalleryAssignment> assignments = [];
     private Dictionary<int, int> selectedImageIds = [];
     private IBrowserFile? uploadFile;
     private string uploadTitle = "";
     private int uploadGroupId;
     private int galleryUploadInputKey;
+    private IReadOnlyList<IBrowserFile> bulkFiles = [];
+    private IBrowserFile? zipFile;
+    private int bulkUploadInputKey;
+    private int zipUploadInputKey;
+    private bool isBulkUploading;
+    private bool showGroupDialog;
+    private List<int> importedImageIds = [];
+    private string importGroupName = "";
+    private bool importGroupIsPublic = true;
+    private string dialogMessage = "";
 
     private string groupName = "";
     private string? groupDescription;
+    private bool groupIsPublic = true;
     private int? editingGroupId;
     private int newGroupImageId;
-
-    private string assignmentPageKey = "home";
-    private string assignmentPageTitle = "Startseite";
-    private int assignmentGroupId;
-    private bool assignmentSlideshowEnabled = true;
-    private int assignmentIntervalSeconds = 3;
 
     private string message = "";
     private string messageClass = "alert-info";
@@ -305,8 +295,6 @@
     {
         images = await GalleryService.GetAllAsync();
         groups = await GalleryService.GetGroupsAsync();
-        assignments = groups.SelectMany(x => x.PageAssignments).OrderBy(x => x.PageTitle).ToList();
-
         var validGroupIds = groups.Select(x => x.Id).ToHashSet();
         foreach (var groupId in selectedImageIds.Keys.Where(groupId => !validGroupIds.Contains(groupId)).ToList())
         {
@@ -328,6 +316,154 @@
 
         if (string.IsNullOrWhiteSpace(uploadTitle))
             uploadTitle = Path.GetFileNameWithoutExtension(e.File.Name);
+    }
+
+    private void HandleBulkFilesSelected(InputFileChangeEventArgs e)
+    {
+        bulkFiles = e.GetMultipleFiles(500)
+            .Where(file => FileUploadService.IsAllowedImageFileName(file.Name))
+            .ToList();
+        zipFile = null;
+        zipUploadInputKey++;
+    }
+
+    private void HandleZipSelected(InputFileChangeEventArgs e)
+    {
+        zipFile = e.File;
+        bulkFiles = [];
+        bulkUploadInputKey++;
+    }
+
+    private async Task ImportSelectedFiles()
+    {
+        if (bulkFiles.Count == 0 && zipFile is null)
+        {
+            SetMessage("Bitte einen Bilderordner, mehrere Bilder oder eine ZIP-Datei auswählen.", "alert-warning");
+            return;
+        }
+
+        isBulkUploading = true;
+        importedImageIds = [];
+        var savedPaths = new List<string>();
+
+        try
+        {
+            if (zipFile is not null)
+                await ImportZip(zipFile, savedPaths);
+            else
+                await ImportBrowserFiles(savedPaths);
+
+            if (importedImageIds.Count == 0)
+                throw new InvalidOperationException("In der Auswahl wurden keine unterstützten Bilder gefunden.");
+
+            importGroupName = zipFile is not null
+                ? Path.GetFileNameWithoutExtension(zipFile.Name)
+                : "Neue Bildgruppe";
+            dialogMessage = "";
+            showGroupDialog = true;
+            SetMessage($"{importedImageIds.Count} Bilder wurden erfolgreich importiert.", "alert-success");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            foreach (var path in savedPaths)
+                FileUploadService.DeleteIfExists(path);
+            foreach (var imageId in importedImageIds)
+                await GalleryService.DeleteAsync(imageId);
+            importedImageIds = [];
+            SetMessage($"Import fehlgeschlagen: {ex.Message}", "alert-danger");
+        }
+        finally
+        {
+            isBulkUploading = false;
+        }
+    }
+
+    private async Task ImportBrowserFiles(List<string> savedPaths)
+    {
+        foreach (var file in bulkFiles)
+        {
+            var path = await FileUploadService.SaveAsync(file, "gallery", UploadFileKind.Image, 10 * 1024 * 1024);
+            savedPaths.Add(path);
+            var image = await GalleryService.AddAsync(new GalleryImage
+            {
+                Title = Path.GetFileNameWithoutExtension(file.Name),
+                ImagePath = path,
+                UploadedAt = DateTime.Now
+            });
+            importedImageIds.Add(image.Id);
+        }
+    }
+
+    private async Task ImportZip(IBrowserFile file, List<string> savedPaths)
+    {
+        const long maxZipSize = 250L * 1024 * 1024;
+        const long maxImageSize = 10L * 1024 * 1024;
+        await using var source = file.OpenReadStream(maxZipSize);
+        using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false);
+        var entries = archive.Entries
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name) && FileUploadService.IsAllowedImageFileName(entry.Name))
+            .Take(501)
+            .ToList();
+
+        if (entries.Count > 500)
+            throw new InvalidOperationException("Eine ZIP-Datei darf maximal 500 Bilder enthalten.");
+
+        var totalSize = entries.Sum(entry => entry.Length);
+        if (totalSize > maxZipSize)
+            throw new InvalidOperationException("Die entpackten Bilder sind zusammen größer als 250 MB.");
+
+        foreach (var entry in entries)
+        {
+            await using var entryStream = entry.Open();
+            var path = await FileUploadService.SaveImageStreamAsync(entryStream, entry.Name, "gallery", entry.Length, maxImageSize);
+            savedPaths.Add(path);
+            var image = await GalleryService.AddAsync(new GalleryImage
+            {
+                Title = Path.GetFileNameWithoutExtension(entry.Name),
+                ImagePath = path,
+                UploadedAt = DateTime.Now
+            });
+            importedImageIds.Add(image.Id);
+        }
+    }
+
+    private async Task CreateGroupFromImport()
+    {
+        if (string.IsNullOrWhiteSpace(importGroupName))
+        {
+            dialogMessage = "Bitte einen Namen für die Bildgruppe eingeben.";
+            return;
+        }
+
+        var group = await GalleryService.AddGroupAsync(new GalleryGroup
+        {
+            Name = importGroupName.Trim(),
+            Description = $"Sammelimport vom {DateTime.Now:dd.MM.yyyy}",
+            IsPublic = importGroupIsPublic
+        });
+
+        foreach (var imageId in importedImageIds)
+            await GalleryService.AddImageToGroupAsync(group.Id, imageId);
+
+        SetMessage($"Die Bildgruppe „{group.Name}“ wurde mit {importedImageIds.Count} Bildern angelegt.", "alert-success");
+        await FinishImportDialog();
+    }
+
+    private async Task FinishWithoutGroup() => await FinishImportDialog();
+
+    private async Task FinishImportDialog()
+    {
+        showGroupDialog = false;
+        importedImageIds = [];
+        importGroupName = "";
+        importGroupIsPublic = true;
+        dialogMessage = "";
+        bulkFiles = [];
+        zipFile = null;
+        bulkUploadInputKey++;
+        zipUploadInputKey++;
+        await LoadData();
     }
 
     private async Task UploadGalleryImage()
@@ -401,6 +537,7 @@
             {
                 group.Name = groupName.Trim();
                 group.Description = groupDescription?.Trim();
+                group.IsPublic = groupIsPublic;
                 await GalleryService.UpdateGroupAsync(group);
                 SetMessage("Gruppe wurde aktualisiert.", "alert-success");
             }
@@ -410,7 +547,8 @@
             var createdGroup = await GalleryService.AddGroupAsync(new GalleryGroup
             {
                 Name = groupName.Trim(),
-                Description = groupDescription?.Trim()
+                Description = groupDescription?.Trim(),
+                IsPublic = groupIsPublic
             });
 
             if (newGroupImageId > 0)
@@ -435,6 +573,7 @@
         editingGroupId = group.Id;
         groupName = group.Name;
         groupDescription = group.Description;
+        groupIsPublic = group.IsPublic;
         SetMessage($"Bearbeite Gruppe '{group.Name}'.", "alert-info");
     }
 
@@ -489,34 +628,6 @@
         await LoadData();
     }
 
-    private async Task SavePageAssignment()
-    {
-        if (assignmentGroupId <= 0)
-        {
-            SetMessage("Bitte eine Gruppe auswählen.", "alert-warning");
-            return;
-        }
-
-        await GalleryService.SavePageAssignmentAsync(new PageGalleryAssignment
-        {
-            PageKey = assignmentPageKey,
-            PageTitle = string.IsNullOrWhiteSpace(assignmentPageTitle) ? assignmentPageKey : assignmentPageTitle.Trim(),
-            GalleryGroupId = assignmentGroupId,
-            SlideshowEnabled = assignmentSlideshowEnabled,
-            IntervalSeconds = Math.Clamp(assignmentIntervalSeconds, 2, 30)
-        });
-
-        SetMessage("Seitenzuweisung wurde gespeichert.", "alert-success");
-        await LoadData();
-    }
-
-    private async Task DeletePageAssignment(int assignmentId)
-    {
-        await GalleryService.DeletePageAssignmentAsync(assignmentId);
-        SetMessage("Seitenzuweisung wurde gelöscht.", "alert-info");
-        await LoadData();
-    }
-
     private async Task DeleteImage(GalleryImage image)
     {
         FileUploadService.DeleteIfExists(image.ImagePath);
@@ -530,6 +641,7 @@
     {
         groupName = "";
         groupDescription = null;
+        groupIsPublic = true;
         editingGroupId = null;
         newGroupImageId = 0;
     }

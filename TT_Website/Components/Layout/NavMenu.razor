@@ -1,122 +1,167 @@
 @using TT_Website.Models
 @using TT_Website.Services
+@rendermode InteractiveServer
 
 @inject ContentPageService ContentPageService
+@inject NewsService NewsService
 
-<header class="site-header">
-    <a class="site-brand" href="/">
-        <img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" />
-        <strong>TSV 1883 Bogen</strong>
-    </a>
+<header class="club-header">
+    <div class="club-header__top">
+        <a class="club-brand" href="/" aria-label="TSV 1883 Bogen Tischtennis – Startseite">
+            <img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" />
+            <span><strong>TSV 1883 Bogen</strong><small>Tischtennis</small></span>
+        </a>
 
-    <input id="site-nav-toggle" type="checkbox" class="site-nav-toggle" />
-    <label for="site-nav-toggle" class="site-nav-button" aria-label="Navigation öffnen">
-        <span></span>
-        <span></span>
-        <span></span>
-    </label>
-
-    <nav class="site-nav" aria-label="Hauptnavigation">
-        @foreach (var navPage in navPages)
-        {
-            var children = navPage.Children
-                .OrderBy(x => x.SortOrder)
-                .ToList();
-
-            <div class="site-nav-item">
-                @if (!string.IsNullOrWhiteSpace(navPage.ExternalUrl))
-                {
-                    <a class="site-nav-link" href="@navPage.ExternalUrl" target="_blank" rel="noopener noreferrer">
-                        @navPage.Title
-                    </a>
-                }
-                else
-                {
-                    <NavLink class="site-nav-link" href="@GetPageUrl(navPage)" Match="@GetMatch(navPage)">
-                        @navPage.Title
-                    </NavLink>
-                }
-
-                @if (children.Count > 0)
-                {
-                    <div class="site-nav-dropdown">
-                        @foreach (var child in children)
-                        {
-                            @if (!string.IsNullOrWhiteSpace(child.ExternalUrl))
+        <div class="club-header__actions">
+            <details class="club-search" ontoggle="syncClubSearch(this)">
+                <summary class="club-login club-search__trigger" aria-label="Vereinsnews durchsuchen">
+                    <svg class="club-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+                    <span class="club-search__label">Suche</span>
+                    <span class="club-search__close" aria-hidden="true">×</span>
+                </summary>
+                <div class="club-search__panel">
+                    <input class="club-search__input" type="search" autocomplete="off" @bind="searchQuery" @bind:event="oninput" placeholder="Wonach suchst du?" aria-label="Vereinsnews durchsuchen" />
+                    @if (!string.IsNullOrWhiteSpace(searchQuery))
+                    {
+                        <div class="club-search__results">
+                            <p class="club-search__result-heading">Suchergebnisse</p>
+                            @foreach (var post in SearchResults)
                             {
-                                <a class="site-nav-dropdown-link" href="@child.ExternalUrl" target="_blank" rel="noopener noreferrer">
-                                    @child.Title
+                                <a href="@($"/news/{post.Id}")" onclick="closeClubNavigation()">
+                                    @if (!string.IsNullOrWhiteSpace(post.ImagePath)) { <img src="@post.ImagePath" alt="" /> }
+                                    <span><small>@post.CreatedAt.ToString("dd.MM.yyyy") · Vereinsnews</small><strong>@post.Title</strong></span>
                                 </a>
                             }
-                            else
-                            {
-                                <NavLink class="site-nav-dropdown-link" href="@GetPageUrl(child)">
-                                    @child.Title
-                                </NavLink>
-                            }
-                        }
-                    </div>
-                }
-            </div>
-        }
-
-        <div class="site-nav-item">
-            <NavLink class="site-nav-link" href="/news" Match="NavLinkMatch.Prefix">
-                News
-            </NavLink>
+                            @if (SearchResults.Count == 0) { <p class="club-search__empty">Keine Vereinsnews gefunden.</p> }
+                        </div>
+                    }
+                </div>
+            </details>
+            <a class="club-join" href="/mitglied-werden">Mitglied werden</a>
+            <a class="club-login" href="/mitglieder/login">Mitglied Login</a>
+            <AuthorizeView>
+                <Authorized>
+                    <a class="club-login" href="/admin">Admin</a>
+                    <form method="post" action="/admin/auth/logout">
+                        <AntiforgeryToken />
+                        <button type="submit" class="club-login">Logout</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized><a class="club-login" href="/admin/login">Admin Login</a></NotAuthorized>
+            </AuthorizeView>
         </div>
 
-        <div class="site-nav-item">
-            <NavLink class="site-nav-link" href="/kontakt" Match="NavLinkMatch.Prefix">
-                Kontakt
-            </NavLink>
+        <input id="site-nav-toggle" type="checkbox" class="site-nav-toggle" />
+        <label for="site-nav-toggle" class="site-nav-button" aria-label="Navigation öffnen">
+            <span></span><span></span><span></span>
+        </label>
+    </div>
+
+    <nav class="club-nav" aria-label="Hauptnavigation">
+        <div class="club-nav__inner">
+            <a class="club-nav__compact-brand" href="/" aria-label="TSV 1883 Bogen Tischtennis – Startseite" onclick="closeClubNavigation()">
+                <img src="/vereinslogo.png" alt="" />
+            </a>
+            @foreach (var item in navigation)
+            {
+                <div class="club-nav__item">
+                    @if (item.External)
+                    {
+                        <a class="club-nav__link" href="@item.Url" target="_blank" rel="noopener noreferrer" onclick="closeClubNavigation()">@item.Title</a>
+                    }
+                    else
+                    {
+                        <NavLink class="club-nav__link" href="@item.Url" Match="NavLinkMatch.Prefix" onclick="closeClubNavigation()">@item.Title</NavLink>
+                    }
+
+                    @if (item.Children.Count > 0)
+                    {
+                        <div class="club-nav__dropdown">
+                            @foreach (var child in item.Children)
+                            {
+                                <a href="@child.Url" target="@(child.External ? "_blank" : null)" rel="@(child.External ? "noopener noreferrer" : null)" onclick="closeClubNavigation()">@child.Title</a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </nav>
-
-    <div class="site-actions">
-        <a class="site-join-link" href="/mitglied-werden">Mitglied werden</a>
-
-        <AuthorizeView>
-            <Authorized>
-                <a class="site-admin-link" href="/admin">Admin</a>
-                <form method="post" action="/admin/auth/logout">
-                    <AntiforgeryToken />
-                    <button type="submit" class="site-admin-button">Logout</button>
-                </form>
-            </Authorized>
-            <NotAuthorized>
-                <a class="site-admin-link" href="/admin/login">Admin Login</a>
-            </NotAuthorized>
-        </AuthorizeView>
-    </div>
 </header>
 
 @code {
-    private List<ContentPage> navPages = [];
+    private List<NavigationItem> navigation = [];
+    private List<NewsPost> searchNews = [];
+    private string searchQuery = "";
+    private List<NewsPost> SearchResults => string.IsNullOrWhiteSpace(searchQuery) ? [] : searchNews
+        .Where(x => x.Title.Contains(searchQuery.Trim(), StringComparison.OrdinalIgnoreCase) || x.Content.Contains(searchQuery.Trim(), StringComparison.OrdinalIgnoreCase))
+        .Take(6).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        navPages = await ContentPageService.GetNavigationAsync();
+        var pages = await ContentPageService.GetNavigationAsync();
+        searchNews = await NewsService.GetPublishedAsync();
+        var bySlug = pages.ToDictionary(x => x.Slug, StringComparer.OrdinalIgnoreCase);
+
+        navigation =
+        [
+            new("News", "/news"),
+            FromPage(bySlug, "ueber-uns", "Über uns", "/seite/ueber-uns", [
+                new("Mitgliedschaft", "/seite/mitgliedschaft"),
+                new("Mitglied werden", "/mitglied-werden"),
+                new("Kontakt", "/kontakt")
+            ]),
+            new("Training", "/training"),
+            FromPage(bySlug, "jugendarbeit", "Jugendarbeit", "/seite/jugendarbeit"),
+            new("Mannschaften", "/mannschaften"),
+            FromPage(bySlug, "aktionen", "Aktionen", "/seite/aktionen"),
+            FromPage(bySlug, "auszeichnungen", "Auszeichnungen", "/seite/auszeichnungen"),
+            new("Tischtennis TV", "/seite/tischtennis-tv"),
+            FromPage(bySlug, "webshop", "Webshop", "https://de.butterfly.tt/", external: true),
+            new("Archiv", "/archiv")
+        ];
     }
 
-    private static string GetPageUrl(ContentPage page)
+    private static NavigationItem FromPage(
+        IReadOnlyDictionary<string, ContentPage> pages,
+        string slug,
+        string title,
+        string fallbackUrl,
+        List<NavigationItem>? additionalChildren = null,
+        bool external = false)
     {
-        return page.Slug switch
+        if (!pages.TryGetValue(slug, out var page))
+            return new(title, fallbackUrl, external, additionalChildren ?? []);
+
+        var children = page.Children
+            .OrderBy(x => x.SortOrder)
+            .Select(x => new NavigationItem(x.Title, GetPageUrl(x), !string.IsNullOrWhiteSpace(x.ExternalUrl)))
+            .ToList();
+        if (additionalChildren is not null)
+            children.AddRange(additionalChildren.Where(x => children.All(y => y.Url != x.Url)));
+
+        return new(page.Title, GetPageUrl(page), !string.IsNullOrWhiteSpace(page.ExternalUrl), children);
+    }
+
+    private static string GetPageUrl(ContentPage page) => !string.IsNullOrWhiteSpace(page.ExternalUrl)
+        ? page.ExternalUrl
+        : page.Slug switch
         {
-            "startseite" => "/",
-            "mannschaften-cms" => "/mannschaften",
-            "mannschaftsuebersicht" => "/mannschaften",
+            "mannschaften-cms" or "mannschaftsuebersicht" => "/mannschaften",
             "aufnahmeerklaerung" => "/mitglied-werden",
             "stammdatenaenderung" => "/stammdatenaenderung",
             "mitgliederentwicklung" => "/mitgliederentwicklung",
             "vereinsrangliste" => "/vereinsrangliste",
             "dokumente" => "/downloads",
+            "training" => "/training",
+            "news" => "/news",
+            "kontakt" => "/kontakt",
+            "archiv" or "galerie" => "/archiv",
             _ => $"/seite/{page.Slug}"
         };
-    }
 
-    private static NavLinkMatch GetMatch(ContentPage page)
+    private sealed record NavigationItem(string Title, string Url, bool External = false, List<NavigationItem>? ChildItems = null)
     {
-        return page.Slug == "startseite" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+        public List<NavigationItem> Children => ChildItems ?? [];
     }
 }

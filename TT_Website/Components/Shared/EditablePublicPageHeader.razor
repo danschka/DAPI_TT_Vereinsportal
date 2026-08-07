@@ -1,185 +1,47 @@
 @using TT_Website.Models
 @using TT_Website.Services
-
 @inject ContentPageService ContentPageService
 
 @if (RenderHero)
 {
-    <section class="@HeroClass">
+    <header class="plain-page-header @CssClass">
         <p class="eyebrow">@Eyebrow</p>
         <h1>@TitleText</h1>
-        @if (!string.IsNullOrWhiteSpace(SummaryText))
-        {
-            <p>@SummaryText</p>
-        }
-    </section>
+        @if (!string.IsNullOrWhiteSpace(SummaryText)) { <p>@SummaryText</p> }
+    </header>
 }
 
-@if (ShowContent && ContentSections.Any())
+@if (ShowContent)
 {
-    <section class="cms-section-list">
-        @foreach (var section in ContentSections)
-        {
-            @if (section.IsImage)
-            {
-                <figure class="content-card cms-image-card">
-                    <img src="@section.ImagePath" alt="@section.Text" />
-                    @if (!string.IsNullOrWhiteSpace(section.Text))
-                    {
-                        <figcaption>@section.Text</figcaption>
-                    }
-                </figure>
-            }
-            else
+    var sections = CmsContentParser.Parse(page?.Content).Where(x => !x.IsImage);
+    @if (sections.Any())
+    {
+        <section class="cms-section-list">
+            @foreach (var section in sections)
             {
                 <article class="content-card cms-text-card">
-                    @if (!string.IsNullOrWhiteSpace(section.Heading))
-                    {
-                        <p class="cms-text-card__question">@section.Heading</p>
-                    }
+                    @if (!string.IsNullOrWhiteSpace(section.Heading)) { <p class="cms-text-card__question">@section.Heading</p> }
                     <p>@section.Text</p>
                 </article>
             }
-        }
-    </section>
+        </section>
+    }
 }
 
 @code {
-    [Parameter, EditorRequired]
-    public string Slug { get; set; } = "";
-
-    [Parameter]
-    public string Eyebrow { get; set; } = "";
-
-    [Parameter]
-    public string DefaultTitle { get; set; } = "";
-
-    [Parameter]
-    public string? DefaultSummary { get; set; }
-
-    [Parameter]
-    public string CssClass { get; set; } = "";
-
-    [Parameter]
-    public bool ShowContent { get; set; }
-
-    [Parameter]
-    public bool RenderHero { get; set; } = true;
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+    [Parameter] public string Eyebrow { get; set; } = "";
+    [Parameter] public string DefaultTitle { get; set; } = "";
+    [Parameter] public string? DefaultSummary { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public bool ShowContent { get; set; }
+    [Parameter] public bool RenderHero { get; set; } = true;
 
     private ContentPage? page;
+    private string TitleText => string.IsNullOrWhiteSpace(page?.Title) ? DefaultTitle : page.Title;
+    private string? SummaryText => string.IsNullOrWhiteSpace(page?.Summary) ? DefaultSummary : page.Summary;
 
-    private string HeroClass => string.IsNullOrWhiteSpace(CssClass)
-        ? "page-hero compact"
-        : $"page-hero compact {CssClass}";
-
-    private string TitleText => string.IsNullOrWhiteSpace(page?.Title)
-        ? DefaultTitle
-        : page.Title;
-
-    private string? SummaryText => string.IsNullOrWhiteSpace(page?.Summary)
-        ? DefaultSummary
-        : page.Summary;
-
-    private IReadOnlyList<CmsContentBlock> ContentSections => CmsContentParser.Parse(page?.Content);
-
-    protected override async Task OnParametersSetAsync()
-    {
-        page = string.IsNullOrWhiteSpace(Slug)
-            ? null
-            : await ContentPageService.GetBySlugAsync(Slug);
-    }
-
-    private static IEnumerable<TextSection> GetContentSections(string? content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            return [];
-
-        var rawLines = content.Replace("\r\n", "\n").Split('\n');
-
-        if (rawLines.Any(line => line.TrimStart().StartsWith("### ")))
-            return GetStructuredContentSections(rawLines);
-
-        var lines = content
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
-
-        var sections = new List<TextSection>();
-        var textBuffer = new List<string>();
-
-        for (var index = 0; index < lines.Count; index++)
-        {
-            var line = lines[index];
-
-            if (line.EndsWith('?') && index + 1 < lines.Count)
-            {
-                AddBufferedTextSection(sections, textBuffer);
-                sections.Add(new TextSection(line, lines[index + 1]));
-                index++;
-                continue;
-            }
-
-            var questionMarkIndex = line.IndexOf('?');
-            if (questionMarkIndex >= 0 && questionMarkIndex < line.Length - 1)
-            {
-                AddBufferedTextSection(sections, textBuffer);
-                sections.Add(new TextSection(
-                    line[..(questionMarkIndex + 1)].Trim(),
-                    line[(questionMarkIndex + 1)..].Trim()));
-                continue;
-            }
-
-            textBuffer.Add(line);
-        }
-
-        AddBufferedTextSection(sections, textBuffer);
-        return sections;
-    }
-
-    private static IEnumerable<TextSection> GetStructuredContentSections(IEnumerable<string> lines)
-    {
-        var sections = new List<TextSection>();
-        var heading = "";
-        var textBuffer = new List<string>();
-
-        foreach (var rawLine in lines)
-        {
-            var line = rawLine.TrimEnd();
-
-            if (line.TrimStart().StartsWith("### "))
-            {
-                AddStructuredTextSection(sections, heading, textBuffer);
-                heading = line.Trim()[4..].Trim();
-                textBuffer.Clear();
-                continue;
-            }
-
-            textBuffer.Add(line);
-        }
-
-        AddStructuredTextSection(sections, heading, textBuffer);
-        return sections;
-    }
-
-    private static void AddBufferedTextSection(List<TextSection> sections, List<string> textBuffer)
-    {
-        if (textBuffer.Count == 0)
-            return;
-
-        sections.Add(new TextSection(null, string.Join("\n", textBuffer)));
-        textBuffer.Clear();
-    }
-
-    private static void AddStructuredTextSection(List<TextSection> sections, string heading, List<string> textBuffer)
-    {
-        var text = string.Join("\n", textBuffer).Trim();
-
-        if (string.IsNullOrWhiteSpace(heading) && string.IsNullOrWhiteSpace(text))
-            return;
-
-        sections.Add(new TextSection(string.IsNullOrWhiteSpace(heading) ? null : heading, text));
-        textBuffer.Clear();
-    }
-
-    private sealed record TextSection(string? Heading, string Text);
+    protected override async Task OnParametersSetAsync() => page = string.IsNullOrWhiteSpace(Slug)
+        ? null
+        : await ContentPageService.GetBySlugAsync(Slug);
 }

@@ -1,0 +1,17 @@
+@page "/mitglieder/login"
+@inject NavigationManager NavigationManager
+
+<section class="admin-login-page">
+    <div class="admin-login-panel">
+        <div class="admin-login-brand"><img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" /><div><p class="eyebrow">Mitgliederbereich</p><h1>TSV 1883 Bogen</h1></div></div>
+        <p class="admin-login-copy">Melde dich an, um die internen Fotogalerien des Vereins zu öffnen.</p>
+        @if (HasError) { <div class="alert alert-warning">Das Passwort ist nicht korrekt.</div> }
+        <form method="post" action="/mitglieder/auth/login" class="admin-login-form">
+            <AntiforgeryToken />
+            <label class="form-label" for="member-password">Passwort</label>
+            <input class="form-control" id="member-password" name="password" type="password" autocomplete="current-password" autofocus required />
+            <button class="btn btn-primary admin-login-submit" type="submit">Einloggen</button>
+        </form>
+    </div>
+</section>
+@code { private bool HasError => NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("error=1"); }

@@ -39,37 +39,15 @@
             <label class="form-label">Kurztext</label>
             <InputTextArea class="form-control" @bind-Value="currentPage.Summary" />
 
-            <fieldset class="admin-layout-picker">
-                <legend>Seiten-Layout</legend>
-                <p class="form-text">Wähle, wie Text-Cards und Inhaltsbilder auf dieser Seite angeordnet werden.</p>
-
-                <InputRadioGroup @bind-Value="currentPage.LayoutStyle">
-                    <div class="admin-layout-options">
-                        @foreach (var option in layoutOptions)
-                        {
-                            <label class="admin-layout-option @(currentPage.LayoutStyle == option.Value ? "is-selected" : "")">
-                                <InputRadio Value="@option.Value" />
-                                <span class="admin-layout-preview admin-layout-preview--@option.Value" aria-hidden="true">
-                                    <i></i><i></i><i></i><i></i>
-                                </span>
-                                <strong>@option.Title</strong>
-                                <small>@option.Description</small>
-                            </label>
-                        }
-                    </div>
-                </InputRadioGroup>
-            </fieldset>
-
             <div class="admin-section-toolbar">
                 <div>
                     <label class="form-label">Seiteninhalt</label>
                     <div class="form-text">
-                        Text-Cards und Bilder können frei angeordnet werden.
+                        Feste Struktur: Unterüberschrift und Text. Weitere Abschnitte können beliebig ergänzt werden.
                     </div>
                 </div>
                 <div class="button-row compact">
-                    <button class="btn btn-outline-primary" type="button" @onclick="AddTextCard">Text-Card hinzufügen</button>
-                    <button class="btn btn-outline-primary" type="button" @onclick="AddImageCard">Bild hinzufügen</button>
+                    <button class="btn btn-outline-primary" type="button" @onclick="AddTextCard">Abschnitt hinzufügen</button>
                 </div>
             </div>
 
@@ -81,7 +59,7 @@
 
                     <article class="admin-text-card-editor">
                         <div class="admin-text-card-editor__header">
-                            <strong>@(card.IsImage ? "Bild" : "Text-Card") @(cardIndex + 1)</strong>
+                            <strong>Textabschnitt @(cardIndex + 1)</strong>
                             <div class="button-row compact">
                                 <button class="btn btn-outline-secondary btn-sm"
                                         type="button"
@@ -104,33 +82,11 @@
                             </div>
                         </div>
 
-                        @if (card.IsImage)
-                        {
-                            <label class="form-label">Bild aus der Galerie</label>
-                            <InputSelect class="form-select" @bind-Value="card.ImagePath">
-                                <option value="">Bild wählen</option>
-                                @foreach (var image in galleryImages)
-                                {
-                                    <option value="@image.ImagePath">@image.Title</option>
-                                }
-                            </InputSelect>
+                        <label class="form-label">Unterüberschrift</label>
+                        <InputText class="form-control" @bind-Value="card.Heading" placeholder="z. B. Was macht uns aus?" />
 
-                            @if (!string.IsNullOrWhiteSpace(card.ImagePath))
-                            {
-                                <img class="admin-content-image-preview" src="@card.ImagePath" alt="Vorschau" />
-                            }
-
-                            <label class="form-label">Bildunterschrift</label>
-                            <InputText class="form-control" @bind-Value="card.Text" />
-                        }
-                        else
-                        {
-                            <label class="form-label">Unterüberschrift</label>
-                            <InputText class="form-control" @bind-Value="card.Heading" placeholder="z. B. Was macht uns aus?" />
-
-                            <label class="form-label">Text</label>
-                            <InputTextArea class="form-control textarea-md" @bind-Value="card.Text" />
-                        }
+                        <label class="form-label">Text</label>
+                        <InputTextArea class="form-control textarea-md" @bind-Value="card.Text" />
                     </article>
                 }
             </div>
@@ -224,7 +180,6 @@
 @code {
     private List<ContentPage> pages = [];
     private List<GalleryGroup> groups = [];
-    private List<GalleryImage> galleryImages = [];
     private ContentPage currentPage = new();
     private List<EditableContentBlock> contentBlocks = [new()];
     private string message = "";
@@ -242,7 +197,6 @@
     {
         pages = await ContentPageService.GetAllAsync();
         groups = await GalleryService.GetGroupsAsync();
-        galleryImages = await GalleryService.GetAllAsync();
     }
 
     private void LoadSelectedPage()
@@ -297,11 +251,6 @@
         contentBlocks.Add(new EditableContentBlock());
     }
 
-    private void AddImageCard()
-    {
-        contentBlocks.Add(new EditableContentBlock { IsImage = true });
-    }
-
     private void RemoveContentBlock(int index)
     {
         if (contentBlocks.Count <= 1 || index < 0 || index >= contentBlocks.Count)
@@ -325,16 +274,9 @@
         return string.Join(
             $"{Environment.NewLine}{Environment.NewLine}",
             contentBlocks
-                .Where(card => card.IsImage
-                    ? !string.IsNullOrWhiteSpace(card.ImagePath)
-                    : !string.IsNullOrWhiteSpace(card.Heading) || !string.IsNullOrWhiteSpace(card.Text))
+                .Where(card => !string.IsNullOrWhiteSpace(card.Heading) || !string.IsNullOrWhiteSpace(card.Text))
                 .Select(card =>
                 {
-                    if (card.IsImage)
-                    {
-                        return $":::image{Environment.NewLine}{card.ImagePath?.Trim()}{Environment.NewLine}{card.Text?.Trim()}{Environment.NewLine}:::";
-                    }
-
                     var heading = card.Heading?.Trim() ?? "";
                     var text = card.Text?.Trim() ?? "";
 
@@ -347,12 +289,11 @@
     private static List<EditableContentBlock> ParseContentBlocks(string content)
     {
         var blocks = CmsContentParser.Parse(content)
+            .Where(block => !block.IsImage)
             .Select(block => new EditableContentBlock
             {
-                IsImage = block.IsImage,
                 Heading = block.Heading ?? "",
-                Text = block.Text,
-                ImagePath = block.ImagePath ?? ""
+                Text = block.Text
             })
             .ToList();
 
@@ -404,6 +345,7 @@
             "kontakt" => "/kontakt",
             "sponsoren" => "/sponsors",
             "galerie" => "/gallery",
+            "archiv" => "/archiv",
             "links" => "/links",
             "webshop" => page.ExternalUrl ?? "https://de.butterfly.tt/",
             "impressum" => "/impressum",
@@ -414,20 +356,7 @@
 
     private sealed class EditableContentBlock
     {
-        public bool IsImage { get; set; }
         public string Heading { get; set; } = "";
         public string Text { get; set; } = "";
-        public string ImagePath { get; set; } = "";
     }
-
-    private static readonly LayoutOption[] layoutOptions =
-    [
-        new("cards", "Flexible Cards", "Kurze Cards fließen in einem ruhigen Raster."),
-        new("single", "Große Textfläche", "Alle Inhalte stehen übersichtlich untereinander."),
-        new("image-left", "Bilder links", "Bilder links, Texte in der rechten Spalte."),
-        new("image-right", "Bilder rechts", "Texte links, Bilder in der rechten Spalte."),
-        new("images-bottom", "Bilder unten", "Zuerst die Texte, anschließend alle Bilder.")
-    ];
-
-    private sealed record LayoutOption(string Value, string Title, string Description);
 }

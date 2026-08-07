@@ -18,6 +18,13 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script>
+        window.closeClubNavigation=()=>{const n=document.getElementById('site-nav-toggle');if(n)n.checked=false;document.querySelectorAll('.club-search[open]').forEach(d=>d.removeAttribute('open'));const h=document.querySelector('.club-header');if(h){h.classList.add('suppress-dropdown');h.addEventListener('mouseleave',()=>h.classList.remove('suppress-dropdown'),{once:true});}};
+        window.syncClubSearch=d=>{if(d.open)requestAnimationFrame(()=>d.querySelector('.club-search__input')?.focus());};
+        addEventListener('click',e=>document.querySelectorAll('.club-search[open]').forEach(d=>{if(!d.contains(e.target))d.removeAttribute('open');}));
+        addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.club-search[open]').forEach(d=>d.removeAttribute('open'));});
+        (()=>{const update=()=>document.querySelector('.club-header')?.classList.toggle('is-scrolled',window.scrollY>24);addEventListener('scroll',update,{passive:true});addEventListener('DOMContentLoaded',update);addEventListener('enhancedload',update);update();})();
+    </script>
 </body>
 
 </html>

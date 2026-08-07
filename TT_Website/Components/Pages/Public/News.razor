@@ -32,32 +32,29 @@
         }
         else
         {
-            <div class="news-feature-grid news-feature-grid--compact">
-                @foreach (var post in newsPosts)
+            <div class="mytt-news-list">
+                @for (var index = 0; index < newsPosts.Count; index++)
                 {
-                    <article class="news-card">
+                    var post = newsPosts[index];
+                    <a class="mytt-news-card" href="@($"/news/{post.Id}")">
                         @if (!string.IsNullOrWhiteSpace(post.ImagePath))
                         {
                             <img src="@post.ImagePath" alt="@post.Title" />
                         }
                         else
                         {
-                            <div class="news-card__placeholder news-card__logo-placeholder">
+                            <div class="mytt-news-card__fallback">
                                 <img src="/vereinslogo.png" alt="TSV 1883 Bogen Tischtennis" />
                             </div>
                         }
 
-                        <div class="news-card__body">
-                            <time datetime="@post.CreatedAt.ToString("yyyy-MM-dd")">
-                                @post.CreatedAt.ToString("dd.MM.yyyy")
-                            </time>
-                            <h2>@post.Title</h2>
-                            @foreach (var paragraph in GetParagraphs(post.Content))
-                            {
-                                <p>@paragraph</p>
-                            }
+                        <div>
+                            <span>Vereinsnews · @post.CreatedAt.ToString("dd.MM.yyyy")</span>
+                            <h3>@post.Title</h3>
+                            <p>@GetTeaser(post.Content)</p>
+                            <small>Weiterlesen →</small>
                         </div>
-                    </article>
+                    </a>
                 }
             </div>
         }
@@ -139,13 +136,7 @@
         }
     }
 
-    private static IEnumerable<string> GetParagraphs(string content)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            return [];
-
-        return content
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x));
-    }
+    private static string GetTeaser(string content) => string.IsNullOrWhiteSpace(content)
+        ? "Mehr Informationen folgen in Kürze."
+        : content.Length <= 180 ? content : $"{content[..177]}…";
 }

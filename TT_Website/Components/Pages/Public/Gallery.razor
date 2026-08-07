@@ -1,103 +1,10 @@
 @page "/gallery"
-@rendermode InteractiveServer
-
+@page "/archiv"
 @using TT_Website.Models
 @using TT_Website.Services
-
 @inject GalleryService GalleryService
 
-<EditablePublicPageHeader Slug="galerie"
-                          Eyebrow="Galerie"
-                          DefaultTitle="Bildergalerie"
-                          DefaultSummary="Bilder aus Training, Spielbetrieb, Aktionen und Vereinsleben."
-                          ShowContent="true" />
-
-@if (images.Count == 0)
-{
-    <section class="content-card empty-state">
-        <h2>Noch keine Bilder vorhanden</h2>
-        <p class="text-muted">Sobald Bilder bereitgestellt wurden, erscheinen sie hier.</p>
-    </section>
-}
-else
-{
-    <div class="gallery-grid">
-        @for (var index = 0; index < images.Count; index++)
-        {
-            var imageIndex = index;
-            var image = images[imageIndex];
-
-            <button class="gallery-card gallery-card-button"
-                    type="button"
-                    aria-label="@($"{image.Title} groß anzeigen")"
-                    @onclick="() => OpenLightbox(imageIndex)">
-                <img src="@image.ImagePath" alt="@image.Title" />
-                <span>@image.Title</span>
-            </button>
-        }
-    </div>
-}
-
-@if (SelectedImage is not null)
-{
-    <div class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Bildansicht">
-        <button class="gallery-lightbox__backdrop" type="button" aria-label="Bildansicht schließen" @onclick="CloseLightbox"></button>
-
-        <div class="gallery-lightbox__content">
-            <button class="gallery-lightbox__close" type="button" aria-label="Schließen" @onclick="CloseLightbox">&times;</button>
-
-            @if (images.Count > 1)
-            {
-                <button class="gallery-lightbox__nav gallery-lightbox__nav--previous"
-                        type="button"
-                        aria-label="Vorheriges Bild"
-                        @onclick="ShowPrevious">&#10094;</button>
-            }
-
-            <figure>
-                <img src="@SelectedImage.ImagePath" alt="@SelectedImage.Title" />
-                <figcaption>
-                    <strong>@SelectedImage.Title</strong>
-                    <span>@(selectedIndex + 1) von @images.Count</span>
-                </figcaption>
-            </figure>
-
-            @if (images.Count > 1)
-            {
-                <button class="gallery-lightbox__nav gallery-lightbox__nav--next"
-                        type="button"
-                        aria-label="Nächstes Bild"
-                        @onclick="ShowNext">&#10095;</button>
-            }
-        </div>
-    </div>
-}
-
-@code {
-    private List<GalleryImage> images = new();
-    private int selectedIndex = -1;
-    private GalleryImage? SelectedImage => selectedIndex >= 0 && selectedIndex < images.Count
-        ? images[selectedIndex]
-        : null;
-
-    protected override async Task OnInitializedAsync()
-    {
-        images = await GalleryService.GetAllAsync();
-    }
-
-    private void OpenLightbox(int index) => selectedIndex = index;
-
-    private void CloseLightbox() => selectedIndex = -1;
-
-    private void ShowPrevious()
-    {
-        if (images.Count > 0)
-            selectedIndex = (selectedIndex - 1 + images.Count) % images.Count;
-    }
-
-    private void ShowNext()
-    {
-        if (images.Count > 0)
-            selectedIndex = (selectedIndex + 1) % images.Count;
-    }
-}
+<EditablePublicPageHeader Slug="galerie" Eyebrow="Galerie" DefaultTitle="Bilderarchiv" DefaultSummary="Öffentliche Bildgruppen aus Training, Spielbetrieb, Aktionen und Vereinsleben." ShowContent="true" />
+@if (groups.Count == 0) { <section class="empty-state"><h2>Noch keine Bildgruppen vorhanden</h2><p class="text-muted">Sobald öffentliche Bildgruppen bereitgestellt wurden, erscheinen sie hier.</p></section> }
+else { <GalleryGroupWidget Groups="GalleryWidgetGroup.FromGroups(groups)" /> }
+@code { private List<GalleryGroup> groups = []; protected override async Task OnInitializedAsync() => groups = await GalleryService.GetPublicGroupsAsync(); }

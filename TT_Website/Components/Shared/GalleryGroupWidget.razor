@@ -1,0 +1,39 @@
+@rendermode InteractiveServer
+@using TT_Website.Models
+
+<div class="gallery-widget-grid">
+    @foreach (var group in Groups.Where(x => x.Images.Count > 0))
+    {
+        var cover = group.Images[0];
+        <button class="gallery-card-button gallery-widget__preview" type="button" @onclick="() => Open(group)">
+            <img src="@cover.ImagePath" alt="@group.Name" />
+            <span class="gallery-widget__caption"><small>@group.Images.Count Bilder</small><strong>@group.Name</strong></span>
+        </button>
+    }
+</div>
+
+@if (CurrentImage is not null)
+{
+    <div class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="@selectedGroup?.Name" tabindex="0" @onkeydown="HandleKey">
+        <button class="gallery-lightbox__backdrop" type="button" aria-label="Schließen" @onclick="Close"></button>
+        <div class="gallery-lightbox__content">
+            <button class="gallery-lightbox__close" type="button" aria-label="Schließen" @onclick="Close">&times;</button>
+            @if (selectedImages.Count > 1) { <button class="gallery-lightbox__nav gallery-lightbox__nav--previous" type="button" aria-label="Vorheriges Bild" @onclick="Previous">&#10094;</button> }
+            <figure><img src="@CurrentImage.ImagePath" alt="@CurrentImage.Title" /><figcaption><span><strong>@selectedGroup?.Name</strong><small>@CurrentImage.Title</small></span><span>@(selectedIndex + 1) / @selectedImages.Count</span></figcaption></figure>
+            @if (selectedImages.Count > 1) { <button class="gallery-lightbox__nav gallery-lightbox__nav--next" type="button" aria-label="Nächstes Bild" @onclick="Next">&#10095;</button> }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<GalleryWidgetGroup> Groups { get; set; } = [];
+    private GalleryWidgetGroup? selectedGroup;
+    private List<GalleryWidgetImage> selectedImages = [];
+    private int selectedIndex;
+    private GalleryWidgetImage? CurrentImage => selectedImages.Count == 0 ? null : selectedImages[selectedIndex];
+    private void Open(GalleryWidgetGroup group) { selectedGroup = group; selectedImages = group.Images; selectedIndex = 0; }
+    private void Close() { selectedGroup = null; selectedImages = []; selectedIndex = 0; }
+    private void Previous() => selectedIndex = (selectedIndex - 1 + selectedImages.Count) % selectedImages.Count;
+    private void Next() => selectedIndex = (selectedIndex + 1) % selectedImages.Count;
+    private void HandleKey(KeyboardEventArgs e) { if (e.Key == "Escape") Close(); else if (e.Key == "ArrowLeft") Previous(); else if (e.Key == "ArrowRight") Next(); }
+}

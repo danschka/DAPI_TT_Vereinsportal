@@ -1,0 +1,47 @@
+@using TT_Website.Models
+
+<div class="structured-editor">
+    @for (var index = 0; index < blocks.Count; index++)
+    {
+        var blockIndex = index;
+        <article class="structured-editor__block">
+            <div class="structured-editor__header">
+                <strong>Abschnitt @(blockIndex + 1)</strong>
+                <button class="btn btn-outline-secondary btn-sm" type="button" disabled="@(blocks.Count == 1)" @onclick="() => Remove(blockIndex)">Entfernen</button>
+            </div>
+            <label class="form-label">Zwischenüberschrift</label>
+            <InputText class="form-control" @bind-Value="blocks[blockIndex].Heading" @bind-Value:after="NotifyChanged" placeholder="Optional" />
+            <label class="form-label">Text</label>
+            <InputTextArea class="form-control textarea-md" @bind-Value="blocks[blockIndex].Text" @bind-Value:after="NotifyChanged" />
+        </article>
+    }
+    <button class="btn btn-outline-primary" type="button" @onclick="Add">Weiteren Abschnitt hinzufügen</button>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    private List<ContentBlock> blocks = [new()];
+    private string loadedValue = "";
+
+    protected override void OnParametersSet()
+    {
+        if (Value == loadedValue) return;
+        loadedValue = Value;
+        blocks = CmsContentParser.Parse(Value).Where(x => !x.IsImage)
+            .Select(x => new ContentBlock { Heading = x.Heading ?? "", Text = x.Text }).ToList();
+        if (blocks.Count == 0) blocks.Add(new());
+    }
+
+    private async Task Add() { blocks.Add(new()); await NotifyChanged(); }
+    private async Task Remove(int index) { if (blocks.Count > 1) blocks.RemoveAt(index); await NotifyChanged(); }
+    private async Task NotifyChanged()
+    {
+        loadedValue = string.Join($"{Environment.NewLine}{Environment.NewLine}", blocks
+            .Where(x => !string.IsNullOrWhiteSpace(x.Heading) || !string.IsNullOrWhiteSpace(x.Text))
+            .Select(x => string.IsNullOrWhiteSpace(x.Heading) ? x.Text.Trim() : $"### {x.Heading.Trim()}{Environment.NewLine}{x.Text.Trim()}"));
+        await ValueChanged.InvokeAsync(loadedValue);
+    }
+
+    private sealed class ContentBlock { public string Heading { get; set; } = ""; public string Text { get; set; } = ""; }
+}

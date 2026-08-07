@@ -28,7 +28,7 @@
     <InputText class="form-control" @bind-Value="title" placeholder="Titel" />
 
     <label class="form-label">Inhalt</label>
-    <InputTextArea class="form-control textarea-lg" @bind-Value="content" placeholder="Inhalt" />
+    <StructuredContentEditor @bind-Value="content" />
 
     <label class="form-label">Bild</label>
     <InputFile class="form-control" OnChange="HandleFileSelected" />

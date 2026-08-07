@@ -1,0 +1,40 @@
+@page "/news/{Id:int}"
+
+@using TT_Website.Models
+@using TT_Website.Services
+@inject NewsService NewsService
+
+<nav class="club-breadcrumb"><a href="/">Startseite</a><span>›</span><a href="/news">News</a><span>›</span><strong>@(post?.Title ?? "Beitrag")</strong></nav>
+
+@if (post is null)
+{
+    <section class="content-card empty-state"><h1>Beitrag nicht gefunden</h1><a class="btn btn-primary" href="/news">Zur Newsübersicht</a></section>
+}
+else
+{
+    <article class="news-detail">
+        <header>
+            <p class="eyebrow">Vereinsnews · @post.CreatedAt.ToString("dd.MM.yyyy")</p>
+            <h1>@post.Title</h1>
+        </header>
+        @if (!string.IsNullOrWhiteSpace(post.ImagePath))
+        {
+            <img class="news-detail__image" src="@post.ImagePath" alt="@post.Title" />
+        }
+        <div class="news-detail__content">
+            @foreach (var block in ContentBlocks)
+            {
+                @if (!string.IsNullOrWhiteSpace(block.Heading)) { <h2>@block.Heading</h2> }
+                <p>@block.Text</p>
+            }
+        </div>
+        <a class="news-detail__back" href="/news">← Zurück zu allen News</a>
+    </article>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private NewsPost? post;
+    private IReadOnlyList<CmsContentBlock> ContentBlocks => CmsContentParser.Parse(post?.Content).Where(x => !x.IsImage).ToList();
+    protected override async Task OnParametersSetAsync() => post = await NewsService.GetByIdAsync(Id);
+}

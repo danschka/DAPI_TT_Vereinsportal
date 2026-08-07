@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<ContentPage> ContentPages => Set<ContentPage>();
     public DbSet<ContentPageGalleryGroup> ContentPageGalleryGroups => Set<ContentPageGalleryGroup>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+    public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

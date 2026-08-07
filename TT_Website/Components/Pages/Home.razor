@@ -7,43 +7,42 @@
 @inject GalleryService GalleryService
 @inject SponsorService SponsorService
 @inject ContentPageService ContentPageService
+@inject CalendarEventService CalendarEventService
 
 <div class="preview-home">
-    <section class="preview-hero">
-        <PageSlideshow PageKey="home"
-                       CssClass="preview-hero-slideshow"
-                       ShowOverlay="true" />
+    <section class="home-news-stage" aria-label="Aktuelle Meldungen">
+        <input id="home-stage-pause" class="home-stage-pause" type="checkbox" />
+        <label for="home-stage-pause" class="home-stage-pause-button" title="Animation pausieren"><span class="pause-icon">Ⅱ</span><span class="play-icon">▶</span></label>
 
-        <div class="preview-hero__content">
-            <p class="preview-kicker">TSV 1883 Bogen Tischtennis</p>
-            <h1>@HomeTitle</h1>
-            <p>
-                @HomeSummary
-                @*
-                für alle, die Tischtennis spielen oder den Verein kennenlernen möchten.
-                *@
-            </p>
-
-            <div class="preview-actions">
-                <a class="btn btn-primary btn-lg" href="/mitglied-werden">Mitglied werden</a>
-                <a class="btn btn-outline-light btn-lg" href="/training">Trainingszeiten</a>
+        @if (heroNews.Count == 0)
+        {
+            <div class="home-stage-fallback"><p class="preview-kicker">TSV 1883 Bogen Tischtennis</p><h1>@HomeTitle</h1><p>@HomeSummary</p></div>
+        }
+        else
+        {
+            <div class="home-stage-slides">
+                @for (var index = 0; index < heroNews.Count; index++)
+                {
+                    var post = heroNews[index];
+                    <article class="home-stage-slide" style="--stage-index:@index">
+                        @if (!string.IsNullOrWhiteSpace(post.ImagePath)) { <img src="@post.ImagePath" alt="" /> }
+                        <div class="home-stage-shade"></div>
+                        <div class="home-stage-copy"><p>@post.CreatedAt.ToString("dd.MM.yyyy") · Vereinsnews</p><h1>@post.Title</h1><a class="home-stage-more" href="@($"/news/{post.Id}")">Mehr</a></div>
+                    </article>
+                }
             </div>
-        </div>
-    </section>
-
-    <section class="preview-section preview-quicklinks" aria-label="Schnelleinstiege">
-        <a class="preview-link-card" href="/mannschaften">
-            <span>Mannschaften</span>
-            <strong>Teams, Ligen und Spielpläne ansehen</strong>
-        </a>
-        <a class="preview-link-card" href="/news">
-            <span>News</span>
-            <strong>Aktuelles aus dem Verein lesen</strong>
-        </a>
-        <a class="preview-link-card" href="/kontakt">
-            <span>Kontakt</span>
-            <strong>Fragen stellen oder Probetraining anfragen</strong>
-        </a>
+            <div class="home-stage-tabs">
+                @for (var index = 0; index < heroNews.Count; index++)
+                {
+                    var post = heroNews[index];
+                    <a class="home-stage-tab" style="--stage-index:@index" href="@($"/news/{post.Id}")">
+                        @if (!string.IsNullOrWhiteSpace(post.ImagePath)) { <img src="@post.ImagePath" alt="" /> }
+                        else { <span class="home-stage-tab-logo"><img src="/vereinslogo.png" alt="" /></span> }
+                        <strong>@post.Title</strong>
+                    </a>
+                }
+            </div>
+        }
     </section>
 
     <section class="preview-section">
@@ -61,10 +60,13 @@
         }
         else
         {
-            <div class="preview-news-grid">
-                @foreach (var post in latestNews)
+            <div class="home-news-loop @(latestNews.Count > 3 ? "is-rotating" : "")">
+              @foreach (var batch in HomeNewsLoop.Chunk(3))
+              {
+                <div class="preview-news-grid home-news-batch">
+                @foreach (var post in batch)
                 {
-                    <article class="preview-news-card">
+                    <a class="preview-news-card" href="@($"/news/{post.Id}")">
                         @if (!string.IsNullOrWhiteSpace(post.ImagePath))
                         {
                             <img src="@post.ImagePath" alt="@post.Title" />
@@ -76,8 +78,10 @@
                             <h3>@post.Title</h3>
                             <p>@GetTeaser(post.Content)</p>
                         </div>
-                    </article>
+                    </a>
                 }
+                </div>
+              }
             </div>
         }
     </section>
@@ -109,6 +113,75 @@
         </div>
     </section>
 
+    <section class="preview-section home-calendar-section">
+        <div class="preview-section-header">
+            <div>
+                <p class="preview-kicker">Kalender</p>
+                <h2>Die nächsten 7 Tage</h2>
+            </div>
+        </div>
+        <div class="home-calendar-strip" aria-label="Veranstaltungskalender für die nächsten 7 Tage">
+            @foreach (var day in CalendarDays)
+            {
+                var dayEvents = calendarEvents.Where(x => x.EventDate.Date == day).ToList();
+                <article class="home-calendar-day @(dayEvents.Count > 0 ? "has-event" : "")">
+                    <header>
+                        <span>@day.ToString("ddd", GermanCulture)</span>
+                        <strong>@day.Day</strong>
+                        <small>@day.ToString("MMM", GermanCulture)</small>
+                    </header>
+                    @if (dayEvents.Count == 0)
+                    {
+                        <p class="home-calendar-empty">Kein Termin</p>
+                    }
+                    else
+                    {
+                        @foreach (var item in dayEvents)
+                        {
+                            <div class="home-calendar-entry" title="@item.Description">
+                                <time>@item.EventDate.ToString("HH:mm")</time>
+                                <strong>@item.Title</strong>
+                            </div>
+                        }
+                    }
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="preview-section home-service-grid">
+        <article class="home-calendar-card">
+            <p class="preview-kicker">Termine</p>
+            <h2>Was als Nächstes ansteht</h2>
+            @if (nextEvent is null)
+            {
+                <p>Aktuell ist noch keine kommende Veranstaltung eingetragen.</p>
+            }
+            else
+            {
+                @if (!string.IsNullOrWhiteSpace(nextEvent.ImagePath))
+                {
+                    <img class="home-next-event-image" src="@nextEvent.ImagePath" alt="@nextEvent.Title" />
+                }
+                <time class="home-next-event-date" datetime="@nextEvent.EventDate.ToString("s")">
+                    @nextEvent.EventDate.ToString("dddd, dd. MMMM yyyy · HH:mm", GermanCulture) Uhr
+                </time>
+                <h3>@nextEvent.Title</h3>
+                <p>@nextEvent.Description</p>
+            }
+        </article>
+        <article class="home-links-card">
+            <p class="preview-kicker">Spielbetrieb</p>
+            <h2>Direkt zu den Ergebnissen</h2>
+            <div class="home-link-list">
+                <a href="/mannschaften"><span>Mannschaften</span><strong>→</strong></a>
+                <a href="/vereinsrangliste"><span>Vereinsrangliste</span><strong>→</strong></a>
+                <a href="https://www.mytischtennis.de/" target="_blank" rel="noopener"><span>myTischtennis</span><strong>↗</strong></a>
+                <a href="https://www.bttv.de/click-tt" target="_blank" rel="noopener"><span>Click-TT</span><strong>↗</strong></a>
+            </div>
+        </article>
+    </section>
+
     <section class="preview-section">
         <div class="preview-section-header">
             <div>
@@ -118,21 +191,13 @@
             <a href="/gallery">Zur Galerie</a>
         </div>
 
-        @if (latestImages.Count == 0)
+        @if (galleryGroups.Count == 0)
         {
-            <p class="preview-empty">Noch keine Bilder vorhanden.</p>
+            <p class="preview-empty">Noch keine öffentlichen Bildgruppen vorhanden.</p>
         }
         else
         {
-            <div class="preview-gallery-strip">
-                @foreach (var image in latestImages)
-                {
-                    <figure>
-                        <img src="@image.ImagePath" alt="@image.Title" />
-                        <figcaption>@image.Title</figcaption>
-                    </figure>
-                }
-            </div>
+            <GalleryGroupWidget Groups="GalleryWidgetGroup.FromGroups(galleryGroups)" />
         }
     </section>
 
@@ -177,9 +242,29 @@
 
 @code {
     private List<NewsPost> latestNews = new();
-    private List<GalleryImage> latestImages = new();
+    private List<NewsPost> heroNews = new();
+    private List<GalleryGroup> galleryGroups = new();
     private List<Sponsor> sponsors = new();
     private ContentPage? homePage;
+    private List<CalendarEvent> calendarEvents = [];
+    private CalendarEvent? nextEvent;
+    private static readonly System.Globalization.CultureInfo GermanCulture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+    private IEnumerable<DateTime> CalendarDays => Enumerable.Range(0, 7).Select(offset => DateTime.Today.AddDays(offset));
+    private IReadOnlyList<NewsPost> HomeNewsLoop
+    {
+        get
+        {
+            if (latestNews.Count <= 3) return latestNews;
+
+            var result = new List<NewsPost>(9);
+            for (var index = 0; index < 9; index++)
+            {
+                result.Add(latestNews[index % latestNews.Count]);
+            }
+
+            return result;
+        }
+    }
     private string HomeTitle => string.IsNullOrWhiteSpace(homePage?.Title)
         ? "Training, Teamgeist und Punktspiele an einem Ort."
         : homePage.Title;
@@ -190,9 +275,21 @@
     protected override async Task OnInitializedAsync()
     {
         homePage = await ContentPageService.GetBySlugAsync("startseite");
-        latestNews = await NewsService.GetLatestAsync(3);
-        latestImages = await GalleryService.GetLatestAsync(4);
+        latestNews = await NewsService.GetLatestAsync(9);
+        heroNews = BuildHeroLoop(latestNews);
+        galleryGroups = await GalleryService.GetPublicGroupsAsync(8);
         sponsors = await SponsorService.GetActiveAsync();
+        calendarEvents = await CalendarEventService.GetUpcomingAsync(DateTime.Today, DateTime.Today.AddDays(6));
+        nextEvent = await CalendarEventService.GetNextAsync(DateTime.Now);
+    }
+
+    private static List<NewsPost> BuildHeroLoop(IReadOnlyList<NewsPost> posts)
+    {
+        var source = posts.Take(4).ToList();
+        if (source.Count == 0) return [];
+        var result = new List<NewsPost>(4);
+        for (var index = 0; index < 4; index++) result.Add(source[index % source.Count]);
+        return result;
     }
 
     private static string GetTeaser(string text)

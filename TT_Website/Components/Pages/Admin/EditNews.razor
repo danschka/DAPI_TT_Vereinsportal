@@ -36,7 +36,7 @@ else
         <InputText class="form-control" @bind-Value="newsPost.Title" />
 
         <label class="form-label">Inhalt</label>
-        <InputTextArea class="form-control textarea-lg" @bind-Value="newsPost.Content" />
+        <StructuredContentEditor @bind-Value="newsPost.Content" />
 
         @if (!string.IsNullOrWhiteSpace(newsPost.ImagePath))
         {
